@@ -2,7 +2,8 @@
    This file is part of LibTMCG.
 
  Copyright (C) 2005, 2006, 2007, 
-               2015, 2016, 2017, 2018, 2019  Heiko Stamer <HeikoStamer@gmx.net>
+               2015, 2016, 2017, 2018, 2019,
+               2021  Heiko Stamer <HeikoStamer@gmx.net>
 
    LibTMCG is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -141,7 +142,7 @@ soQSdQiIld2d9zstmKjMMpHgpyIK1yyfCO0C85WpMqUIUc368kdlRH", TMCG_MPZ_IO_BASE);
 		start_clock();
 		for (size_t j = 0; j < 10; j++)
 		{
-		    for (size_t i = 0; i < (1000000 * MOD_BIAS_WIDTH); i++)
+		    for (size_t i = 0; i < (100000 * MOD_BIAS_WIDTH); i++)
 			cnt[tmcg_mpz_wrandom_ui() % MOD_BIAS_WIDTH]++;
 		    for (size_t i = 0; i < MOD_BIAS_WIDTH; i++)
 			std::cout << cnt[i] << " ";
@@ -156,7 +157,7 @@ soQSdQiIld2d9zstmKjMMpHgpyIK1yyfCO0C85WpMqUIUc368kdlRH", TMCG_MPZ_IO_BASE);
 		start_clock();
 		for (size_t j = 0; j < 10; j++)
 		{
-		    for (size_t i = 0; i < (1000000 * MOD_BIAS_WIDTH); i++)
+		    for (size_t i = 0; i < (100000 * MOD_BIAS_WIDTH); i++)
 			cnt[tmcg_mpz_wrandom_mod(MOD_BIAS_WIDTH)]++;
 		    for (size_t i = 0; i < MOD_BIAS_WIDTH; i++)
 			std::cout << cnt[i] << " ";
@@ -308,11 +309,11 @@ soQSdQiIld2d9zstmKjMMpHgpyIK1yyfCO0C85WpMqUIUc368kdlRH", TMCG_MPZ_IO_BASE);
 		tmcg_mpz_ssrandomm_cache_done(cache, cache_mod, cache_avail);
 		assert(!cache_avail);
 #endif
-	
+
 		// tmcg_mpz_sprime, tmcg_mpz_sprime2g, tmcg_mpz_sprime3mod4
 		std::cout << "tmcg_mpz_sprime(), tmcg_mpz_sprime2g()," <<
 			" tmcg_mpz_sprime3mod4()" << std::endl;
-		for (size_t i = 0; i < 2; i++)
+		for (size_t i = 0; i < 3; i++)
 		{
 			tmcg_mpz_sprime(foo, bar, 1024, TMCG_MR_ITERATIONS);
 			assert(mpz_probab_prime_p(foo, 64) && mpz_probab_prime_p(bar, 64));
@@ -361,27 +362,34 @@ soQSdQiIld2d9zstmKjMMpHgpyIK1yyfCO0C85WpMqUIUc368kdlRH", TMCG_MPZ_IO_BASE);
 		}
 
 		// tmcg_mpz_s[m]prime[_naive|noninc] benchmark
+		size_t prime_benchmark_runs = 25;
 		std::cout << "tmcg_mpz_sprime() benchmark" << std::endl;
 		start_clock();
-		for (size_t i = 0; i < 25; i++)
+		for (size_t i = 0; i < prime_benchmark_runs; i++)
 			tmcg_mpz_sprime(foo, bar, 1024, TMCG_MR_ITERATIONS);
 		stop_clock();
 		std::cout << elapsed_time() << std::endl;
 		std::cout << "tmcg_mpz_smprime() benchmark" << std::endl;
 		start_clock();
-		for (size_t i = 0; i < 25; i++)
+		for (size_t i = 0; i < prime_benchmark_runs; i++)
 			tmcg_mpz_smprime(foo, bar, 1024, TMCG_MR_ITERATIONS);
 		stop_clock();
 		std::cout << elapsed_time() << std::endl;
 		std::cout << "tmcg_mpz_sprime_naive() benchmark" << std::endl;
 		start_clock();
-		for (size_t i = 0; i < 25; i++)
+		for (size_t i = 0; i < prime_benchmark_runs; i++)
 			tmcg_mpz_sprime_naive(foo, bar, 1024, TMCG_MR_ITERATIONS);
+		stop_clock();
+		std::cout << elapsed_time() << std::endl;
+		std::cout << "tmcg_mpz_smprime_naive() benchmark" << std::endl;
+		start_clock();
+		for (size_t i = 0; i < prime_benchmark_runs; i++)
+			tmcg_mpz_smprime_naive(foo, bar, 1024, TMCG_MR_ITERATIONS);
 		stop_clock();
 		std::cout << elapsed_time() << std::endl;
 		std::cout << "tmcg_mpz_sprime_noninc() benchmark" << std::endl;
 		start_clock();
-		for (size_t i = 0; i < 25; i++)
+		for (size_t i = 0; i < prime_benchmark_runs; i++)
 		{
 			tmcg_mpz_sprime_noninc(foo, bar, 1024, TMCG_MR_ITERATIONS);
 			std::cout << "." << std::flush;

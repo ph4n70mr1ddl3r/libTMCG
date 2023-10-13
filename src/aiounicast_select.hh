@@ -3,7 +3,7 @@
 
    This file is part of LibTMCG.
 
- Copyright (C) 2017, 2018  Heiko Stamer <HeikoStamer@gmx.net>
+ Copyright (C) 2017, 2018, 2019  Heiko Stamer <HeikoStamer@gmx.net>
 
    LibTMCG is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,18 +41,23 @@
 class aiounicast_select : public aiounicast
 {
 	private:
-		size_t								aio_schedule_current;
-		size_t								aio_schedule_buffer;
-		size_t								buf_in_size;
-		std::vector<unsigned char*>			buf_in, iv_out;
-		std::vector<size_t>					buf_ptr;
-		std::vector<bool>					buf_flag, iv_flag_out, iv_flag_in;
-		std::vector< std::list<mpz_ptr> >	buf_mpz;
-		size_t								maclen, keylen, blklen;
-		std::vector<gcry_mac_hd_t*>			mac_in, mac_out;
-		std::vector<gcry_cipher_hd_t*>		enc_in, enc_out;
+		size_t                             aio_schedule_current;
+		size_t                             aio_schedule_buffer;
+		size_t                             buf_in_size;
+		std::vector<unsigned char*>        buf_in, iv_out, iv_in;
+		std::vector<size_t>                buf_ptr;
+		std::vector<bool>                  buf_flag;
+		std::vector<bool>                  iv_flag_out, iv_flag_in;
+		std::vector< std::list<mpz_ptr> >  buf_mpz;
+		size_t                             maclen, keylen, blklen;
+		std::vector<gcry_mac_hd_t*>        mac_in, mac_out;
+		std::vector<mpz_ptr>               mac_sqn_in, mac_sqn_out;
+		std::vector<gcry_cipher_hd_t*>     enc_in, enc_out;
+		std::vector<mpz_ptr>               chunk_out, chunk_in;
 
 	public:
+		std::vector<bool>                  bad_auth;
+
 		aiounicast_select
 			(const size_t n_in,
 			 const size_t j_in,
@@ -62,7 +67,8 @@ class aiounicast_select : public aiounicast
 			 const size_t aio_default_scheduler_in = aio_scheduler_roundrobin,
 			 const time_t aio_default_timeout_in = aio_timeout_very_long,
 			 const bool aio_is_authenticated_in = true,
-			 const bool aio_is_encrypted_in = true);
+			 const bool aio_is_encrypted_in = true,
+			 const bool aio_is_chunked_in = false);
 		bool Send
 			(mpz_srcptr m,
 			 const size_t i_in,
@@ -81,6 +87,8 @@ class aiounicast_select : public aiounicast
 			 size_t &i_out,
 			 size_t scheduler = aio_scheduler_default,
 			 time_t timeout = aio_timeout_default);
+		void Reset
+			(const size_t i_in, const bool input);
 		~aiounicast_select
 			();
 };

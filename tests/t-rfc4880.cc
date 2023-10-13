@@ -1,7 +1,8 @@
 /*******************************************************************************
    This file is part of LibTMCG.
 
- Copyright (C) 2016, 2017, 2018, 2019  Heiko Stamer <HeikoStamer@gmx.net>
+ Copyright (C) 2016, 2017, 2018, 2019, 2020,
+               2021  Heiko Stamer <HeikoStamer@gmx.net>
 
    LibTMCG is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,9 +65,36 @@ int main
 			assert((CallasDonnerhackeFinneyShawThayerRFC4880::
 				OctetsCompare(in, out) == CallasDonnerhackeFinneyShawThayerRFC4880::
 				OctetsCompareConstantTime(outs, ins)));
-			std::cout << "~";
+			std::cout << "~" << std::flush;
 		}
 		while (!CallasDonnerhackeFinneyShawThayerRFC4880::OctetsCompareZero(in));
+		std::cout << std::endl;
+
+		// testing CRC24Compute()
+		size_t inlen = 2048;
+		size_t crclen = gcry_md_get_algo_dlen(GCRY_MD_CRC24_RFC2440);
+		std::cout << "CRC24Compute() ";
+		assert((crclen > 0));
+		for (size_t i = 0; i < 420; i++)
+		{
+			char crcin[inlen], crcout[crclen];
+			size_t len = 1 + (tmcg_mpz_wrandom_ui() % (inlen-1));
+			in.clear(), out.clear();
+			for (size_t j = 0; j < len; j++)
+				in.push_back(tmcg_mpz_wrandom_ui() % 256);
+			for (size_t j = 0; j < len; j++)
+				crcin[j] = in[j];
+			CallasDonnerhackeFinneyShawThayerRFC4880::
+				CRC24Compute(in, out);
+			gcry_md_hash_buffer(GCRY_MD_CRC24_RFC2440, crcout, crcin, len);
+			in.clear();
+			for (size_t j = 0; j < crclen; j++)
+				in.push_back(crcout[j]);
+			assert((CallasDonnerhackeFinneyShawThayerRFC4880::
+				OctetsCompare(in, out)));
+			if ((i % 10) == 0)
+				std::cout << "~" << std::flush;
+		}
 		std::cout << std::endl;
 
 		// testing Radix64Encode() and Radix64Decode()
@@ -133,6 +161,38 @@ int main
 				}
 				size_t cpos = armor.find("\r\n=");
 				u += armor[cpos+3]; // append a single character
+			}
+		}
+		for (std::vector<tmcg_openpgp_armor_t>::iterator j = vat.begin();
+		     j != vat.end(); ++j)
+		{
+			std::string u = "Alexander von Humboldt";
+			std::string comment = "Sibirien ist die Fortsetzung der Hasenheide";
+			for (size_t k = 0; k < 256; k++)
+			{
+				std::string armor;
+				in.clear(), out.clear();
+				std::cout << "PackedUidEncode(\"" << u << "\", in)" << std::endl;
+				CallasDonnerhackeFinneyShawThayerRFC4880::
+					PacketUidEncode(u, in);
+				std::cout << "ArmorEncode(" << *j << ", in, armor)" << std::endl;
+				CallasDonnerhackeFinneyShawThayerRFC4880::
+					ArmorEncode(*j, comment, in, armor, true);
+				std::cout << armor << std::endl;
+				std::cout << "ArmorDecode(armor, out) = ";
+				at = CallasDonnerhackeFinneyShawThayerRFC4880::
+					ArmorDecode(armor, out);
+				std::cout << (int)at << std::endl;
+				assert(at == *j);
+				assert(in.size() == out.size());
+				for (size_t i = 0; i < in.size(); i++)
+				{
+					assert(in[i] == out[i]);
+				}
+				size_t cpos = armor.find("\r\n=");
+				u += armor[cpos+3]; // append a single character
+				comment += ".\r\nComment: "; // append a new comment line
+				comment += armor[cpos+3]; // with a single character
 			}
 		}
 
@@ -298,9 +358,6 @@ int main
 		{
 			aeadin.push_back(0xAD);
 			enc.clear(), out.clear(), iv.clear();
-#if GCRYPT_VERSION_NUMBER < 0x010700
-			// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
 			std::cout << "SymmetricEncryptAEAD(...)" << std::endl;
 			ret = CallasDonnerhackeFinneyShawThayerRFC4880::
 				SymmetricEncryptAEAD(aeadin, seskey, TMCG_OPENPGP_SKALGO_AES256,
@@ -316,7 +373,6 @@ int main
 			{
 				assert(aeadin[i] == out[i]); // check the result
 			}
-#endif
 		}
 
 		// testing SymmetricEncryptAEAD(), SymmetricDecryptAEAD() with |ad| = 13
@@ -330,13 +386,10 @@ int main
 			ad.push_back(c); // chunk size octet
 			for (size_t i = 0; i < 8; i++)
 				ad.push_back(0x00); // initial eight-octet big-endian chunk index
-			for (size_t j = 0; j < 1024; j++)
+			for (size_t j = 0; j < 128; j++)
 			{
 				aeadin.push_back(0xAE);
 				enc.clear(), out.clear(), iv.clear();
-#if GCRYPT_VERSION_NUMBER < 0x010700
-			// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
 				std::cout << "SymmetricEncryptAEAD(...)" << std::endl;
 				ret = CallasDonnerhackeFinneyShawThayerRFC4880::
 					SymmetricEncryptAEAD(aeadin, seskey,
@@ -354,7 +407,6 @@ int main
 				{
 					assert(aeadin[i] == out[i]); // check the result
 				}
-#endif
 			}
 		}
 
@@ -574,17 +626,30 @@ int main
 		bool parse_ok = CallasDonnerhackeFinneyShawThayerRFC4880::
 			PublicKeyBlockParse(armored_pubkeyblock, 3, primary);
 		assert(parse_ok);
-		tmcg_openpgp_octets_t expub;
+		tmcg_openpgp_octets_t expub, expub2, expub3, expub4, expub5;
 		std::cout << "Export()" << std::endl;
 		primary->Export(expub);
 		assert((CallasDonnerhackeFinneyShawThayerRFC4880::
 			OctetsCompare(all, expub)));
+		std::cout << "Export(TMCG_OPENPGP_EXPORT_KEYSONLY)" << std::endl;
+		primary->Export(expub2, TMCG_OPENPGP_EXPORT_KEYSONLY);
+		assert(expub2.size() < expub.size());
+		std::cout << "Export(TMCG_OPENPGP_EXPORT_MINIMAL)" << std::endl;
+		primary->Export(expub3, TMCG_OPENPGP_EXPORT_MINIMAL);
+		assert(expub3.size() == 0);
+		std::cout << "Export(TMCG_OPENPGP_EXPORT_REVCERT)" << std::endl;
+		primary->Export(expub4, TMCG_OPENPGP_EXPORT_REVCERT);
+		assert(expub4.size() <= expub.size());
 		std::cout << "CheckSelfSignatures()" << std::endl;
 		parse_ok = primary->CheckSelfSignatures(ring, 3);
 		assert(parse_ok);
 		std::cout << "CheckSubkeys()" << std::endl;
 		parse_ok = primary->CheckSubkeys(ring, 3);
 		assert(parse_ok);
+		std::cout << "Export(TMCG_OPENPGP_EXPORT_MINIMAL)" << std::endl;
+		primary->Export(expub5, TMCG_OPENPGP_EXPORT_MINIMAL);
+		assert((CallasDonnerhackeFinneyShawThayerRFC4880::
+			OctetsCompare(all, expub5)));
 		std::string fpr, kid;
 		std::cout << "FingerprintConvertPlain()" << std::endl;
 		CallasDonnerhackeFinneyShawThayerRFC4880::
@@ -614,17 +679,26 @@ int main
 		parse_ok = CallasDonnerhackeFinneyShawThayerRFC4880::
 			SignatureParse(armored_signature, 3, signature);
 		assert(parse_ok);
+		TMCG_OpenPGP_Signature signature2 = *signature;
 		assert(signature->Good());
+		assert(signature2.Good());
 		std::cout << "PrintInfo()" << std::endl;
 		signature->PrintInfo();
+		signature2.PrintInfo();
 		std::cout << "CheckValidity()" << std::endl;
 		parse_ok = signature->CheckValidity(creation, 3);
+		assert(parse_ok);
+		parse_ok = signature2.CheckValidity(creation, 3);
 		assert(parse_ok);
 		std::cout << "!CheckValidity()" << std::endl;
 		parse_ok = signature->CheckValidity(time(NULL), 3);
 		assert(!parse_ok);
+		parse_ok = signature2.CheckValidity(time(NULL), 3);
+		assert(!parse_ok);
 		std::cout << "Verify(..., \"" << filename << "\", ...)" << std::endl;
 		parse_ok = signature->Verify(dsakey, filename, 3);
+		assert(parse_ok);
+		parse_ok = signature2.Verify(dsakey, filename, 3);
 		assert(parse_ok);
 		delete signature;
 		remove(filename.c_str());
@@ -705,6 +779,77 @@ int main
 		assert((ring->Check(0) == 2));
 		ring->Reduce();
 		assert((ring->Size() == 2));
+		std::string kid2, kid3, fpr2, fpr3;
+		tmcg_openpgp_octets_t fingerprint;		
+		CallasDonnerhackeFinneyShawThayerRFC4880::
+			KeyidConvert(keyid2, kid2);
+		CallasDonnerhackeFinneyShawThayerRFC4880::
+			FingerprintCompute(pub_hashing2, fingerprint);
+		CallasDonnerhackeFinneyShawThayerRFC4880::
+			FingerprintConvertPlain(fingerprint, fpr2);
+		kid3 = kid2, fpr3 = fpr2; // convert to lower-case
+		for (size_t i = 0; i < kid3.length(); i++)
+		{
+			switch (kid3[i])
+			{
+				case 'A':
+					kid3[i] = 'a';
+					break;
+				case 'B':
+					kid3[i] = 'b';
+					break;
+				case 'C':
+					kid3[i] = 'c';
+					break;
+				case 'D':
+					kid3[i] = 'd';
+					break;
+				case 'E':
+					kid3[i] = 'e';
+					break;
+				case 'F':
+					kid3[i] = 'f';
+					break;
+			}
+		}
+		for (size_t i = 0; i < fpr3.length(); i++)
+		{
+			switch (fpr3[i])
+			{
+				case 'A':
+					fpr3[i] = 'a';
+					break;
+				case 'B':
+					fpr3[i] = 'b';
+					break;
+				case 'C':
+					fpr3[i] = 'c';
+					break;
+				case 'D':
+					fpr3[i] = 'd';
+					break;
+				case 'E':
+					fpr3[i] = 'e';
+					break;
+				case 'F':
+					fpr3[i] = 'f';
+					break;
+			}
+		}
+		std::cout << "!Find(" << kid2 << ")" << std::endl;
+		assert((ring->Find(kid2) == NULL));
+		std::cout << "!Find(" << kid3 << ")" << std::endl;
+		assert((ring->Find(kid3) == NULL));
+		std::cout << "Find(" << fpr2 << ")" << std::endl;
+		assert((ring->Find(fpr2) != NULL));
+		std::cout << "Find(" << fpr3 << ")" << std::endl;
+		assert((ring->Find(fpr3) != NULL));
+		std::cout << "FindByKeyid(" << kid2 << ")" << std::endl;
+		assert((ring->FindByKeyid(kid2) != NULL));
+		std::cout << "FindByKeyid(" << kid3 << ")" << std::endl;
+		assert((ring->FindByKeyid(kid3) != NULL));
+		std::cout << "FindByKeyid(" << fpr2 << ")" << std::endl;		
+		assert((ring->FindByKeyid(fpr2) != NULL));
 		delete ring;
 		gcry_mpi_release(p);
 		gcry_mpi_release(q);
@@ -795,6 +940,7 @@ int main
 		parse_ok = CallasDonnerhackeFinneyShawThayerRFC4880::
 			MessageParse(armored_message, 3, msg);
 		assert(parse_ok);
+		msg->PrintInfo();
 		seskey.clear();
 		for (size_t i = 0; i < (msg->PKESKs).size(); i++)
 		{
@@ -822,6 +968,7 @@ int main
 		parse_ok = CallasDonnerhackeFinneyShawThayerRFC4880::
 			MessageParse(dec, 3, msg);
 		assert(parse_ok);
+		msg->PrintInfo();
 		assert(CallasDonnerhackeFinneyShawThayerRFC4880::
 			OctetsCompare(lit, msg->literal_message));
 		assert(CallasDonnerhackeFinneyShawThayerRFC4880::
@@ -870,7 +1017,7 @@ int main
 			std::cout << "CheckSubkeys()" << std::endl;
 			parse_ok = mallory->CheckSubkeys(ring, 3);
 			assert(parse_ok);
-			std::cout << "!primary->Weak()" << std::endl;
+			std::cout << "!mallory->Weak()" << std::endl;
 			check_ok = mallory->Weak(3);
 			assert(!check_ok);
 		}
@@ -910,12 +1057,207 @@ int main
 			std::cout << "CheckSubkeys()" << std::endl;
 			parse_ok = emmapub->CheckSubkeys(ring, 3);
 			assert(parse_ok);
-			std::cout << "!primary->Weak()" << std::endl;
+			std::cout << "!emmapub->Weak()" << std::endl;
 			check_ok = emmapub->Weak(3);
 			assert(!check_ok);
 			emma->RelinkPrivateSubkeys(); // undo the relinking
+			time_t sigtime = time(NULL); // current time, fixed algo SHA2-512
+			tmcg_openpgp_hashalgo_t hashalgo = TMCG_OPENPGP_HASHALGO_SHA512;
+			tmcg_openpgp_octets_t trailer, hash, left, sig;
+			CallasDonnerhackeFinneyShawThayerRFC4880::
+				PacketSigPrepareDetachedSignature(
+					TMCG_OPENPGP_SIGNATURE_BINARY_DOCUMENT, emmapub->pkalgo,
+					hashalgo, sigtime, 0, "", emmapub->fingerprint, trailer);
+			std::cout << "BinaryDocumentHash()" << std::endl;
+			check_ok = CallasDonnerhackeFinneyShawThayerRFC4880::
+				BinaryDocumentHash(dec, trailer, hashalgo, hash, left);
+			assert(check_ok);
+			std::cout << "SignData()" << std::endl;
+			check_ok = emma->SignData(hash, hashalgo, trailer, left, 3, sig);
+			assert(check_ok);
+			TMCG_OpenPGP_Signature *emma_signature = NULL;
+			std::cout << "SignatureParse()" << std::endl;
+			parse_ok = CallasDonnerhackeFinneyShawThayerRFC4880::
+				SignatureParse(sig, 3, emma_signature);
+			assert(parse_ok);
+			assert(emma_signature->Good());
+			std::cout << "PrintInfo()" << std::endl;
+			emma_signature->PrintInfo();
+			std::cout << "CheckValidity()" << std::endl;
+			parse_ok = emma_signature->CheckValidity(emmapub->creationtime, 3);
+			assert(parse_ok);
+			std::cout << "VerifyData()" << std::endl;
+			parse_ok = emma_signature->VerifyData(emmapub->key, dec, 3);
+			assert(parse_ok);
+			delete emma_signature;
 		}
 		delete emma;
+		delete ring;
+
+		// test externally generated public key with attested certifications
+		std::string davey_armored =
+"-----BEGIN PGP PUBLIC KEY BLOCK-----\r\n"
+"Comment: D1A6 6E1A 23B1 82C9 980F  788C FBFC C82A 015E 7330\r\n"
+"Comment: Bob Babbage <bob@openpgp.example>\r\n\r\n"
+"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\r\n"
+"5KjhX2PVNEJd3XZRzaXZE2aAMQ==\r\n"
+"=O7Nv\r\n"
+"-----END PGP PUBLIC KEY BLOCK-----\r\n";
+		TMCG_OpenPGP_Pubkey *davey = NULL;
+		ring = new TMCG_OpenPGP_Keyring();
+		std::cout << "PublicKeyBlockParse(davey_armored, 3, davey)" <<
+			std::endl;
+		parse_ok = CallasDonnerhackeFinneyShawThayerRFC4880::
+			PublicKeyBlockParse(davey_armored, 3, davey);
+		assert(parse_ok);
+		if (gcry_check_version("1.7.0"))
+		{
+			std::cout << "CheckSelfSignatures()" << std::endl;
+			parse_ok = davey->CheckSelfSignatures(ring, 3);
+			assert(parse_ok);
+			std::cout << "!davey->Weak()" << std::endl;
+			check_ok = davey->Weak(3);
+			assert(!check_ok);
+			for (size_t i = 0; i < davey->userids.size(); i++)
+			{
+				std::string uid = davey->userids[i]->userid_sanitized;
+				std::cout << "userid = \"" << uid << "\" is ";
+				if (davey->userids[i]->valid)
+					std::cout << "valid" << std::endl;
+				else
+					std::cout << "invalid" << std::endl;
+				std::cout << "AccumulateAttestations()" << std::endl;
+				assert(davey->userids[i]->AccumulateAttestations(davey, 3) == 1);
+				std::cout << "CheckAttestations()" << std::endl;
+				assert(davey->userids[i]->CheckAttestations(davey, 3));
+			}
+		}
+		delete davey;
+		delete ring;
+
+		// test EdDSA public key and a signature with leading zeros 
+		std::string alice_armored =
+"-----BEGIN PGP PUBLIC KEY BLOCK-----\r\n"
+"Comment: Alice's OpenPGP certificate\r\n"
+"Comment: https://tools.ietf.org/html/draft-bre-openpgp-samples\r\n\r\n"
+"mDMEXEcE6RYJKwYBBAHaRw8BAQdArjWwk3FAqyiFbFBKT4TzXcVBqPTB3gmzlC/U\r\n"
+"b7O1u120JkFsaWNlIExvdmVsYWNlIDxhbGljZUBvcGVucGdwLmV4YW1wbGU+iJAE\r\n"
+"ExYIADgCGwMFCwkIBwIGFQoJCAsCBBYCAwECHgECF4AWIQTrhbtfozp14V6UTmPy\r\n"
+"MVUMT0fjjgUCXaWfOgAKCRDyMVUMT0fjjukrAPoDnHBSogOmsHOsd9qGsiZpgRnO\r\n"
+"dypvbm+QtXZqth9rvwD9HcDC0tC+PHAsO7OTh1S1TC9RiJsvawAfCPaQZoed8gK4\r\n"
+"OARcRwTpEgorBgEEAZdVAQUBAQdAQv8GIa2rSTzgqbXCpDDYMiKRVitCsy203x3s\r\n"
+"E9+eviIDAQgHiHgEGBYIACAWIQTrhbtfozp14V6UTmPyMVUMT0fjjgUCXEcE6QIb\r\n"
+"DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn\r\n"
+"0QEA22Kr7VkCjeAEC08VSTeV+QFsmz55/lntWkwYWhmvOgE=\r\n"
+"=iIGO\r\n"
+"-----END PGP PUBLIC KEY BLOCK-----\r\n";
+		std::string alice_sig =
+"-----BEGIN PGP SIGNATURE-----\r\n\r\n"
+"wnQEABYKACcFAl23GYsJEPIxVQxPR+OOFiEE64W7X6M6deFelE5j8jFVDE9H444A\r\n"
+"ANOWAPsHrQTUDtDyP3gr2KsdhX/iapwrO3HSLUD7X41YUasdygD4r6QGQxJXKfbR\r\n"
+"lpZFZ4otf72qcIzc82oZxaApG9L6Dg==\r\n"
+"=WUuG\r\n"
+"-----END PGP SIGNATURE-----\r\n";
+		TMCG_OpenPGP_Pubkey *alice = NULL;
+		ring = new TMCG_OpenPGP_Keyring();
+		std::cout << "PublicKeyBlockParse(alice_armored, 3, alice)" <<
+			std::endl;
+		parse_ok = CallasDonnerhackeFinneyShawThayerRFC4880::
+			PublicKeyBlockParse(alice_armored, 3, alice);
+		assert(parse_ok);
+		if (gcry_check_version("1.7.0"))
+		{
+			std::cout << "CheckSelfSignatures()" << std::endl;
+			parse_ok = alice->CheckSelfSignatures(ring, 3);
+			assert(parse_ok);
+			std::cout << "!alice->Weak()" << std::endl;
+			check_ok = alice->Weak(3);
+			assert(!check_ok);
+			for (size_t i = 0; i < alice->userids.size(); i++)
+			{
+				std::string uid = alice->userids[i]->userid_sanitized;
+				std::cout << "userid = \"" << uid << "\" is ";
+				if (alice->userids[i]->valid)
+					std::cout << "valid" << std::endl;
+				else
+					std::cout << "invalid" << std::endl;
+			}
+			TMCG_OpenPGP_Signature *alice_signature = NULL;
+			std::cout << "SignatureParse()" << std::endl;
+			parse_ok = CallasDonnerhackeFinneyShawThayerRFC4880::
+				SignatureParse(alice_sig, 3, alice_signature);
+			assert(parse_ok);
+			assert(alice_signature->Good());
+			std::cout << "PrintInfo()" << std::endl;
+			alice_signature->PrintInfo();
+			std::cout << "CheckValidity()" << std::endl;
+			parse_ok = alice_signature->CheckValidity(alice->creationtime, 3);
+			assert(parse_ok);
+			std::string alice_filename = "t-rfc4880.tmp";
+			std::ofstream ofs(alice_filename.c_str(), std::ofstream::out);
+			assert(ofs.good());
+			ofs << "huhu" << std::endl;
+			assert(ofs.good());
+			ofs.close();
+			std::cout << "Verify(..., \"" << alice_filename << "\", ...)" <<
+				std::endl;
+			parse_ok = alice_signature->Verify(alice->key, alice_filename, 3);
+			assert(parse_ok);
+			delete alice_signature;
+			remove(alice_filename.c_str());
+		}
+		delete alice;
 		delete ring;
 	
 		return 0;

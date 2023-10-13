@@ -1,4 +1,4 @@
-Copyright (C)  2006--2009, 2015--2019 Heiko Stamer <HeikoStamer@gmx.net>
+Copyright (C)  2006--2009, 2015--2021 Heiko Stamer <HeikoStamer@gmx.net>
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -7,20 +7,97 @@ no Front-Cover Texts, and no Back-Cover Texts. A copy of the license is included
 in the sources of this package and additionally can be obtained from Internet
 <https://www.gnu.org/licenses>.
 
+* [2019-] added data structure TMCG_Bigint
+* [2021-03-25] RFC4880: changed UpdateProperties() w.r.t. missing subpackets
+* [2021-03-23] RFC4880: added TMCG_OPENPGP_ARMOR_FILE type in ArmorDecode()
+* [2021-03-22] RFC4880: added member TMCG_OpenPGP_PrivateSubkey::SignData()
+* [2021-03-22] RFC4880: added member TMCG_OpenPGP_Prvkey::SignData()
+* [2021-03-21] RFC4880: fixed bug #60154 (hash calc first-party attestations)
+* [2021-03-20] RFC4880: infer missing issuer from issuer fingerprint
+* [2021-03-20] RFC4880: added member bindingtime for TMCG_OpenPGP_Subkey
+* [2021-03-20] RFC4880: make checksum in ArmorDecode() optional
+* [2021-03-20] RFC4880: fixed bug in PacketDecode() handling Trust packets
+* [2021-02-07] RFC4880: cleanup ArmorDecode() w.r.t. carriage returns
+* [2021-01-21] RFC4880: adjust weakness check E*DSA (change in libgcrypt 1.9.x)
+* [2020-10-15] RFC4880: added type definition TMCG_OpenPGP_Pubkeys
+* [2020-10-14] RFC4880: added member TMCG_OpenPGP_Message::PrintInfo()
+* [2020-09-26] RFC4880: ignore bad packets in member SignatureParse() 
+* [2020-09-26] RFC4880: fixed bug #58981 (ignore marker packets)
+* [2020-09-26] RFC4880: added member SignaturesParse()
+* [2020-09-19] RFC4880: added type definition TMCG_OpenPGP_Signatures
+* [2020-08-28] RFC4880: fixed bug #58937 (handle unknown S2K specifier)
+* [2020-08-19] RFC4880: fixed bug #58983 (std::bad_alloc on duplicated subkeys)
+* [2020-08-14] RFC4880: fixed bug #58937 (handle unknown packet versions)
+* [2020-08-08] RFC4880: collect embedded signatures from unhashed subpackets
+* [2020-08-07] RFC4880: fixed bug #58887 (excluded trailing blanks from hashing)
+* [2020-08-07] RFC4880: added feature request #58895 (unknown critical notation)
+* [2020-07-19] RFC4880: fixed bug #58777 (should not decrypt SED packets)
+* [2020-05-02] RFC4880: fixed bug w.r.t. unrecognized critical subpackets
+* [2019-12-21] RFC4880: added boolean flag to control some RFC 4880bis features
+* [2019-11-17] RFC4880: guard against zero-allocation of tmcg_openpgp_byte_t
+* [2019-11-15] RFC4880: fixed check for bad marker in PacketDecodeTag10()
+* [2019-10-31] RFC4880: fixed bug #57135 (EdDSA sig values with leading zeros)
+* [2019-10-24] RFC4880: fixed bug #57097 (make the key lookup case-insensitive)
+* [2019-10-23] RFC4880: fixed bug #57108 (bad checksum for non-256-bit keys)
+* [2019-10-12] RFC4880: turn warning into error for insecure hash algorithms on
+               signature verification in TMCG_OpenPGP_Signature::CheckValidity()
+* [2019-09-29] tests: added t-tmcg (basic checks for Schindelhauer's toolbox)
+* [2019-09-14] raised the requirement of libgcrypt version to >= 1.8.0, of
+               libgpg-error version to >= 1.27, and of libgmp to >= 6.1.2 
+* [2019-09-07] RFC4880: changed prefered compression from UNCOMPRESSED to ZIP
+* [2019-09-02] RFC4880: added Attested Certifications stuff (cf. RFC 4880bis)
+* [2019-09-01] RFC4880: added member decryptionfpr in TMCG_OpenPGP_Message to
+               store the decryption context (fingerprint) for handling Intended
+               Recipient Fingerprint subpackets (cf. RFC 4880bis)
+* [2019-08-31] aiounicast_*: added Reset() to provide e.g. authentication reset
+* [2019-08-30] RFC4880: added tmcg_openpgp_export_flags_t and changed method
+               TMCG_OpenPGP_Pubkey::Export() to allow a restricted export
+* [2019-08-30] RFC4880: changed ArmorEncode() to provide armor annotations
+* [2019-08-29] aiounicast_*: added improved authentication by sequence numbers
+* [2019-08-28] RFC4880: added quick-check in TMCG_OpenPGP_Signature
+* [2019-08-25] RFC4880: added SHA3 from RFC 4880bis in several methods
+* [2019-08-25] RFC4880: added tmcg_openpgp_multiple_octets_t and changed members
+               from TMCG_OpenPGP_Signature (i.e. embeddedsigs and recipientfprs)
+* [2019-08-15] RBC: added out-of-order handler to retrieve missing messages
+* [2019-08-13] RBC: added member fifo_skip and a mechanism to skip FIFO-ordering
+* [2019-08-12] RBC: added member ID_log to trace the history of ID operations
+* [2019-08-12] RFC4880: improved MessageParse() for detecting invalid structure
+* [2019-08-11] RFC4880: added Intended Recipient Fingerprint subpacket
+               cf. https://gitlab.com/openpgp-wg/rfc4880bis/merge_requests/19
+* [2019-08-11] RFC4880: improved TMCG_OpenPGP_Signature::operator < according
+               to suggested canonical ordering, cf. https://dev.gnupg.org/T3389
+* [2019-08-09] aiounicast_select: added chunked encryption mode for robustness
+* [2019-08-08] aiounicast: added member aio_is_chunked
+* [2019-08-05] aiounicast_*: fixes missing MAC reset even if verification fails
+* [2019-07-14] RBC: added recoverID() to recover an old state of the channel
+* [2019-07-14] RBC: added QueueFrom() to queue an already delivered message
+* [2019-07-13] RBC: fixed a logical error w.r.t. so-called bad r-answer messages
+* [2019-07-11] RFC4880: added member expired to TMCG_OpenPGP_Signature, 
+               TMCG_OpenPGP_Subkey, and TMCG_OpenPGP_Pubkey
+* [2019-07-10] RFC4880: changed length encoding for strings and subpackets
+* [2019-07-08] RFC4880: changed ArmorEncode() to avoid armor header by default
+   see https://mailarchive.ietf.org/arch/msg/openpgp/WynQyL-9vfVFLe2Jau3jxpT83g8
+* [2019-06-13] RFC4880: changed TMCG_OpenPGP_Pubkey::CheckSelfSignatures() in
+               order to handle keys without user IDs (cf. RFC 4880bis)
+* [2019-06-10] mpz_sprime: improved trial division by using GCD implementation
+* [2019-06-10] mpz_sprime: added tmcg_mpz_smprime_naive() with increased bound B
+* [2019-06-10] added non-installing program gen_primes (generate some constants)
+* [2019-06-04] configure.ac: fixed unwanted modification of variable CPPFLAGS
 * [2019-05-31] release 1.3.18 of LibTMCG
 * [2019-05-23] RFC4880: changed TMCG_OpenPGP_PrivateSubkey::Decrypt() in order
                to handle v5 keys correctly w.r.t. ECDH decryption
-* [2019-05-23] RFC4880: changed KDFCompute() according to RFC4880bis-06
+* [2019-05-23] RFC4880: changed KDFCompute() according to RFC 4880bis-06
 * [2019-05-22] RFC4880: stored packet version within TMCG_OpenPGP_Message
 * [2019-05-20] RFC4880: fixed wrong iterated KDF computation in S2KCompute()
 * [2019-05-20] RFC4880: changed interface of HashCompute()
 * [2019-05-15] RFC4880: added public member version to TMCG_OpenPGP_PKESK
+* [2019-05-11] tests/StiglicMPC: code cleanup and simplified MPC_CyclicShift()
 * [2019-05-08] RFC4880: added another shape of VerfifyData() for v5 signatures
 * [2019-05-01] RFC4880: removed unnecessary interfaces for fingerprints/key IDs
 * [2019-05-01] RFC4880: added support of v5 keys to TMCG_OpenPGP_Keyring
 * [2019-05-01] RFC4880: added support of v5 keys in parsing functions
 * [2019-04-30] RFC4880: changed PacketSigPrepareDetachedSignature() to follow
-               requirements of RFC4880bis-06 regarding the issuer subpacket
+               requirements of RFC 4880bis-06 regarding the issuer subpacket
 * [2019-04-30] RFC4880: added PacketSigPrepareDetachedSignatureV5()
 * [2019-04-29] RFC4880: fixed wrong parsing of date within Literal Data Packet
 * [2019-04-29] RFC4880: added BinaryDocumentHashV5(), TextDocumentHashV5()

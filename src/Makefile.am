@@ -1,4 +1,4 @@
-# Copyright (C) 2005, 2009, 2016, 2017, 2018  Heiko Stamer <HeikoStamer@gmx.net>
+# Copyright (C) 2005, 2009, 2016, 2017, 2018, 2020  Heiko Stamer <HeikoStamer@gmx.net>
 #
 # This file is part of LibTMCG.
 #
@@ -16,12 +16,18 @@
 #   along with LibTMCG; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
 
-EXTRA_DIST = libTMCG-config.in libTMCG.m4 sha3.c
+EXTRA_DIST = libTMCG-config.in libTMCG.m4
 
 bin_SCRIPTS = libTMCG-config
 
+noinst_PROGRAMS = gen_primes
+gen_primes_SOURCES = gen_primes.cc
+gen_primes_CXXFLAGS = @LIBGMP_CFLAGS@
+gen_primes_LDADD = @LIBGMP_LIBS@
+
 include_HEADERS = mpz_srandom.hh mpz_sqrtm.hh mpz_spowm.hh mpz_sprime.hh\
 	mpz_shash.hh parse_helper.hh mpz_helper.hh\
+	TMCG_Bigint.hh\
 	BarnettSmartVTMF_dlog.hh BarnettSmartVTMF_dlog_GroupQR.hh\
 	PedersenCOM.hh\
 	GrothVSSHE.hh\
@@ -54,6 +60,7 @@ libTMCG_la_SOURCES = mpz_srandom.cc mpz_srandom.hh\
 	mpz_shash.cc mpz_shash.hh\
 	parse_helper.cc parse_helper.hh\
 	mpz_helper.cc mpz_helper.hh\
+	TMCG_Bigint.cc TMCG_Bigint.hh\
 	BarnettSmartVTMF_dlog.cc BarnettSmartVTMF_dlog.hh\
 	BarnettSmartVTMF_dlog_GroupQR.cc BarnettSmartVTMF_dlog_GroupQR.hh\
 	PedersenCOM.cc PedersenCOM.hh\

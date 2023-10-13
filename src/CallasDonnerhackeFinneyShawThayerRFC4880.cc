@@ -18,7 +18,8 @@
 
    This file is part of LibTMCG.
 
- Copyright (C) 2016, 2017, 2018, 2019  Heiko Stamer <HeikoStamer@gmx.net>
+ Copyright (C) 2016, 2017, 2018, 2019, 2020,
+               2021  Heiko Stamer <HeikoStamer@gmx.net>
 
    LibTMCG is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,11 +73,16 @@ TMCG_OpenPGP_Signature::TMCG_OpenPGP_Signature
 	 const tmcg_openpgp_octets_t &keyprefs_pha_in,
 	 const tmcg_openpgp_octets_t &keyprefs_pca_in,
 	 const tmcg_openpgp_octets_t &keyprefs_paa_in,
-	 const tmcg_openpgp_octets_t &embeddedsig_in):
+	 const tmcg_openpgp_multiple_octets_t &embeddedsigs_in,
+	 const tmcg_openpgp_multiple_octets_t &recipientfprs_in,
+	 const tmcg_openpgp_multiple_octets_t &attestedcerts_in,
+	 const tmcg_openpgp_octets_t &left_in):
 		ret(gcry_error(GPG_ERR_BAD_SIGNATURE)),
 		erroff(0),
 		valid(false),
 		revoked(false),
+		expired(false),
+		attested(false),
 		revocable(revocable_in),
 		exportable(exportable_in),
 		pkalgo(pkalgo_in),
@@ -114,8 +120,25 @@ TMCG_OpenPGP_Signature::TMCG_OpenPGP_Signature
 		keyprefs_pca_in.begin(), keyprefs_pca_in.end());
 	keyprefs_paa.insert(keyprefs_paa.end(),
 		keyprefs_paa_in.begin(), keyprefs_paa_in.end());
-	embeddedsig.insert(embeddedsig.end(),
-		embeddedsig_in.begin(), embeddedsig_in.end());
+	embeddedsigs.resize(embeddedsigs_in.size());
+	for (size_t i = 0; i < embeddedsigs_in.size(); i++)
+	{
+		embeddedsigs[i].insert(embeddedsigs[i].end(),
+			embeddedsigs_in[i].begin(), embeddedsigs_in[i].end());
+	}
+	recipientfprs.resize(recipientfprs_in.size());
+	for (size_t i = 0; i < recipientfprs_in.size(); i++)
+	{
+		recipientfprs[i].insert(recipientfprs[i].end(),
+			recipientfprs_in[i].begin(), recipientfprs_in[i].end());
+	}
+	attestedcerts.resize(attestedcerts_in.size());
+	for (size_t i = 0; i < attestedcerts_in.size(); i++)
+	{
+		attestedcerts[i].insert(attestedcerts[i].end(),
+			attestedcerts_in[i].begin(), attestedcerts_in[i].end());
+	}
+	left.insert(left.end(), left_in.begin(), left_in.end());
 }
 
 TMCG_OpenPGP_Signature::TMCG_OpenPGP_Signature
@@ -141,11 +164,16 @@ TMCG_OpenPGP_Signature::TMCG_OpenPGP_Signature
 	 const tmcg_openpgp_octets_t &keyprefs_pha_in,
 	 const tmcg_openpgp_octets_t &keyprefs_pca_in,
 	 const tmcg_openpgp_octets_t &keyprefs_paa_in,
-	 const tmcg_openpgp_octets_t &embeddedsig_in):
+	 const tmcg_openpgp_multiple_octets_t &embeddedsigs_in,
+	 const tmcg_openpgp_multiple_octets_t &recipientfprs_in,
+	 const tmcg_openpgp_multiple_octets_t &attestedcerts_in,
+	 const tmcg_openpgp_octets_t &left_in):
 		ret(gcry_error(GPG_ERR_BAD_SIGNATURE)),
 		erroff(0),
 		valid(false),
 		revoked(false),
+		expired(false),
+		attested(false),
 		revocable(revocable_in),
 		exportable(exportable_in),
 		pkalgo(pkalgo_in),
@@ -163,14 +191,20 @@ TMCG_OpenPGP_Signature::TMCG_OpenPGP_Signature
 	gcry_mpi_set(dsa_r, r);
 	gcry_mpi_set(dsa_s, s);
 	if (pkalgo == TMCG_OPENPGP_PKALGO_DSA)
+	{
 		ret = gcry_sexp_build(&signature, &erroff,
 			"(sig-val (dsa (r %M) (s %M)))", r, s);
+	}
 	else if (pkalgo == TMCG_OPENPGP_PKALGO_ECDSA)
+	{
 		ret = gcry_sexp_build(&signature, &erroff,
 			"(sig-val (ecdsa (r %M) (s %M)))", r, s);
+	}
 	else if (pkalgo == TMCG_OPENPGP_PKALGO_EDDSA)
+	{
 		ret = gcry_sexp_build(&signature, &erroff,
 			"(sig-val (eddsa (r %M) (s %M)))", r, s);
+	}
 	else
 		signature = NULL;
 	packet.insert(packet.end(),
@@ -193,8 +227,122 @@ TMCG_OpenPGP_Signature::TMCG_OpenPGP_Signature
 		keyprefs_pca_in.begin(), keyprefs_pca_in.end());
 	keyprefs_paa.insert(keyprefs_paa.end(),
 		keyprefs_paa_in.begin(), keyprefs_paa_in.end());
-	embeddedsig.insert(embeddedsig.end(),
-		embeddedsig_in.begin(), embeddedsig_in.end());
+	embeddedsigs.resize(embeddedsigs_in.size());
+	for (size_t i = 0; i < embeddedsigs_in.size(); i++)
+	{
+		embeddedsigs[i].insert(embeddedsigs[i].end(),
+			embeddedsigs_in[i].begin(), embeddedsigs_in[i].end());
+	}
+	recipientfprs.resize(recipientfprs_in.size());
+	for (size_t i = 0; i < recipientfprs_in.size(); i++)
+	{
+		recipientfprs[i].insert(recipientfprs[i].end(),
+			recipientfprs_in[i].begin(), recipientfprs_in[i].end());
+	}
+	attestedcerts.resize(attestedcerts_in.size());
+	for (size_t i = 0; i < attestedcerts_in.size(); i++)
+	{
+		attestedcerts[i].insert(attestedcerts[i].end(),
+			attestedcerts_in[i].begin(), attestedcerts_in[i].end());
+	}
+	left.insert(left.end(), left_in.begin(), left_in.end());
+}
+
+TMCG_OpenPGP_Signature::TMCG_OpenPGP_Signature
+	(const TMCG_OpenPGP_Signature &that):
+		ret(gcry_error(GPG_ERR_BAD_SIGNATURE)),
+		erroff(0)	
+{
+	valid = that.valid;
+	revoked = that.revoked;
+	expired = that.expired;
+	attested = that.attested;
+	revocable = that.revocable;
+	exportable = that.exportable;
+	pkalgo = that.pkalgo;
+	hashalgo = that.hashalgo;
+	type = that.type;
+	version = that.version;
+	creationtime = that.creationtime;
+	expirationtime = that.expirationtime;
+	keyexpirationtime = that.keyexpirationtime;
+	revcode = that.revcode;
+	if ((pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
+		(pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
+	{
+		ret = gcry_sexp_build(&signature, &erroff,
+			"(sig-val (rsa (s %M)))", that.rsa_md);
+	}
+	else if (pkalgo == TMCG_OPENPGP_PKALGO_DSA)
+	{
+		ret = gcry_sexp_build(&signature, &erroff,
+			"(sig-val (dsa (r %M) (s %M)))", that.dsa_r, that.dsa_s);
+	}
+	else if (pkalgo == TMCG_OPENPGP_PKALGO_ECDSA)
+	{
+		ret = gcry_sexp_build(&signature, &erroff,
+			"(sig-val (ecdsa (r %M) (s %M)))", that.dsa_r, that.dsa_s);
+	}
+	else if (pkalgo == TMCG_OPENPGP_PKALGO_EDDSA)
+	{
+		ret = gcry_sexp_build(&signature, &erroff,
+			"(sig-val (eddsa (r %M) (s %M)))", that.dsa_r, that.dsa_s);
+	}
+	else
+		signature = NULL;
+	rsa_md = gcry_mpi_new(8);
+	dsa_r = gcry_mpi_new(8);
+	dsa_s = gcry_mpi_new(8);
+	gcry_mpi_set(rsa_md, that.rsa_md);
+	gcry_mpi_set(dsa_r, that.dsa_r);
+	gcry_mpi_set(dsa_s, that.dsa_s);
+	packet.insert(packet.end(),
+		that.packet.begin(), that.packet.end());
+	hspd.insert(hspd.end(),
+		that.hspd.begin(), that.hspd.end());
+	issuer.insert(issuer.end(),
+		that.issuer.begin(), that.issuer.end());
+	issuerfpr.insert(issuerfpr.end(),
+		that.issuerfpr.begin(), that.issuerfpr.end());
+	keyflags.insert(keyflags.end(),
+		that.keyflags.begin(), that.keyflags.end());
+	keyfeatures.insert(keyfeatures.end(), 
+		that.keyfeatures.begin(), that.keyfeatures.end());
+	keyprefs_psa.insert(keyprefs_psa.end(),
+		that.keyprefs_psa.begin(), that.keyprefs_psa.end());
+	keyprefs_pha.insert(keyprefs_pha.end(),
+		that.keyprefs_pha.begin(), that.keyprefs_pha.end());
+	keyprefs_pca.insert(keyprefs_pca.end(),
+		that.keyprefs_pca.begin(), that.keyprefs_pca.end());
+	keyprefs_paa.insert(keyprefs_paa.end(),
+		that.keyprefs_paa.begin(), that.keyprefs_paa.end());
+	revkeys.resize(that.revkeys.size());
+	for (size_t i = 0; i < that.revkeys.size(); i++)
+	{
+		revkeys[i].key_class = that.revkeys[i].key_class;
+		revkeys[i].key_pkalgo = that.revkeys[i].key_pkalgo;
+		for (size_t j = 0; j < sizeof(that.revkeys[i].key_fingerprint); j++)
+			revkeys[i].key_fingerprint[j] = that.revkeys[i].key_fingerprint[j];
+	}
+	embeddedsigs.resize(that.embeddedsigs.size());
+	for (size_t i = 0; i < that.embeddedsigs.size(); i++)
+	{
+		embeddedsigs[i].insert(embeddedsigs[i].end(),
+			that.embeddedsigs[i].begin(), that.embeddedsigs[i].end());
+	}
+	recipientfprs.resize(that.recipientfprs.size());
+	for (size_t i = 0; i < that.recipientfprs.size(); i++)
+	{
+		recipientfprs[i].insert(recipientfprs[i].end(),
+			that.recipientfprs[i].begin(), that.recipientfprs[i].end());
+	}
+	attestedcerts.resize(that.attestedcerts.size());
+	for (size_t i = 0; i < that.attestedcerts.size(); i++)
+	{
+		attestedcerts[i].insert(attestedcerts[i].end(),
+			that.attestedcerts[i].begin(), that.attestedcerts[i].end());
+	}
+	left.insert(left.end(), that.left.begin(), that.left.end());
 }
 
 bool TMCG_OpenPGP_Signature::Good
@@ -228,44 +376,60 @@ void TMCG_OpenPGP_Signature::PrintInfo
 		for (size_t i = 0; i < keyflags.size(); i++)
 			std::cerr << (int)keyflags[i] << " ";
 		std::cerr << std::dec << 
-		" revkeys.size() = " << revkeys.size() << std::endl;
+		" revkeys.size() = " << revkeys.size() <<
+		" embeddedsigs.size() = " << embeddedsigs.size() <<
+		" recipientfprs.size() = " << recipientfprs.size() <<
+		" attestedcerts.size() = " << attestedcerts.size() <<
+		" left = " << std::hex;
+		for (size_t i = 0; i < left.size(); i++)
+			std::cerr << (int)left[i] << " ";
+		std::cerr << std::dec << std::endl;
 }
 
 bool TMCG_OpenPGP_Signature::CheckValidity
 	(const time_t keycreationtime,
-	 const int verbose) const
+	 const int verbose)
 {
 	time_t current = time(NULL);
-	time_t fmax = 60 * 60 * 25; // deviation threshold: 25 hours
 	time_t vmax = creationtime + expirationtime;
 	if (expirationtime && (current > vmax))
 	{
 		if (verbose)
-			std::cerr << "WARNING: signature has been expired" << std::endl;
+			std::cerr << "ERROR: signature has been expired" << std::endl;
+		expired = true;
 		return false;
 	}
 	if (creationtime < keycreationtime)
 	{
 		if (verbose)
-			std::cerr << "WARNING: signature is " <<
+		{
+			std::cerr << "ERROR: signature is " <<
 				"older than corresponding key" << std::endl;
+		}
 		return false;
 	}
+	time_t fmax = 60 * 60 * 25; // deviation threshold: 25 hours
 	if (creationtime > (current + fmax))
 	{
 		if (verbose)
-			std::cerr << "WARNING: creation time of " <<
+		{
+			std::cerr << "ERROR: creation time of " <<
 				"signature is in far future" << std::endl;
+		}
 		return false;
 	}
 	if ((hashalgo != TMCG_OPENPGP_HASHALGO_SHA256) &&
 	    (hashalgo != TMCG_OPENPGP_HASHALGO_SHA384) &&
-	    (hashalgo != TMCG_OPENPGP_HASHALGO_SHA512))
+	    (hashalgo != TMCG_OPENPGP_HASHALGO_SHA512) &&
+		(hashalgo != TMCG_OPENPGP_HASHALGO_SHA3_256) &&
+		(hashalgo != TMCG_OPENPGP_HASHALGO_SHA3_512))
 	{
 		if (verbose)
-			std::cerr << "WARNING: insecure hash algorithm " << 
+		{
+			std::cerr << "ERROR: insecure hash algorithm " << 
 				(int)hashalgo << " used for signature" << std::endl;
-		// return false;
+		}
+		return false;
 	}
 	return true;
 }
@@ -275,6 +439,16 @@ bool TMCG_OpenPGP_Signature::CheckIntegrity
 	 const tmcg_openpgp_octets_t &hash,
 	 const int verbose) const
 {
+	if ((left.size() == 2) &&
+		((left[0] != hash[0]) || (left[1] != hash[1])))
+	{
+		if (verbose)
+		{
+			std::cerr << "ERROR: verification of signature " <<
+				"failed (quick check)" << std::endl;
+		}
+		return false;
+	}
 	gcry_error_t vret;
 	if ((pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
 	    (pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
@@ -300,16 +474,21 @@ bool TMCG_OpenPGP_Signature::CheckIntegrity
 	else
 	{
 		if (verbose)
-			std::cerr << "ERROR: signature algorithm " << (int)pkalgo <<
-				" not supported" << std::endl;
+		{
+			std::cerr << "ERROR: signature algorithm " <<
+				(int)pkalgo << " not supported" << std::endl;
+		}
 		return false;
 	}
 	if (vret)
 	{
 		if (verbose)
+		{
 			std::cerr << "ERROR: verification of signature " <<
 				"failed (rc = " << gcry_err_code(vret) <<
-				", str = " << gcry_strerror(vret) << ")" << std::endl;
+				", str = " << gcry_strerror(vret) << ")" <<
+				std::endl;
+		}
 		return false;
 	}
 	return true;
@@ -340,7 +519,10 @@ bool TMCG_OpenPGP_Signature::VerifyData
 	if (!Good())
 	{
 		if (verbose)
-			std::cerr << "ERROR: bad signature material found" << std::endl;
+		{
+			std::cerr << "ERROR: bad signature material found" <<
+				std::endl;
+		}
 		return false;
 	}
 	tmcg_openpgp_octets_t trailer, left, hash;
@@ -458,11 +640,16 @@ bool TMCG_OpenPGP_Signature::VerifyData
 		return false;
 	}
 	if (verbose > 2)
+	{
 		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
-			" " << (int)left[1] << std::dec << std::endl;
-	if (CheckIntegrity(key, hash, verbose))
-		return true;
-	return false;
+			" " << (int)left[1] << std::endl << "INFO: hash = ";
+		for (size_t i = 0; i < hash.size(); i++)
+			std::cerr << (int)hash[i] << " ";
+		std::cerr << std::dec << std::endl;
+	}
+	if (!CheckIntegrity(key, hash, verbose))
+		return false;
+	return true;
 }
 
 bool TMCG_OpenPGP_Signature::VerifyData
@@ -476,7 +663,10 @@ bool TMCG_OpenPGP_Signature::VerifyData
 	if (!Good())
 	{
 		if (verbose)
-			std::cerr << "ERROR: bad signature material found" << std::endl;
+		{
+			std::cerr << "ERROR: bad signature material found" <<
+				std::endl;
+		}
 		return false;
 	}
 	tmcg_openpgp_octets_t trailer, left, hash;
@@ -630,11 +820,16 @@ bool TMCG_OpenPGP_Signature::VerifyData
 		return false;
 	}
 	if (verbose > 2)
+	{
 		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
-			" " << (int)left[1] << std::dec << std::endl;
-	if (CheckIntegrity(key, hash, verbose))
-		return true;
-	return false;
+			" " << (int)left[1] << std::endl << "INFO: hash = ";
+		for (size_t i = 0; i < hash.size(); i++)
+			std::cerr << (int)hash[i] << " ";
+		std::cerr << std::dec << std::endl;
+	}
+	if (!CheckIntegrity(key, hash, verbose))
+		return false;
+	return true;
 }
 
 bool TMCG_OpenPGP_Signature::Verify
@@ -645,7 +840,10 @@ bool TMCG_OpenPGP_Signature::Verify
 	if (!Good())
 	{
 		if (verbose)
-			std::cerr << "ERROR: bad signature material found" << std::endl;
+		{
+			std::cerr << "ERROR: bad signature material found" <<
+				std::endl;
+		}
 		return false;
 	}
 	tmcg_openpgp_octets_t trailer, left, hash;
@@ -767,15 +965,18 @@ bool TMCG_OpenPGP_Signature::Verify
 		return false;
 	}
 	if (verbose > 2)
-		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
-			" " << (int)left[1] << std::dec << std::endl;
-	if (CheckIntegrity(key, hash, verbose))
 	{
-		valid = true;
-		return true;
+		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
+			" " << (int)left[1] << std::endl << "INFO: hash = ";
+		for (size_t i = 0; i < hash.size(); i++)
+			std::cerr << (int)hash[i] << " ";
+		std::cerr << std::dec << std::endl;
 	}
 	valid = false;
-	return false;
+	if (!CheckIntegrity(key, hash, verbose))
+		return false;
+	valid = true;
+	return true;
 }
 
 bool TMCG_OpenPGP_Signature::Verify
@@ -785,7 +986,10 @@ bool TMCG_OpenPGP_Signature::Verify
 	if (!Good())
 	{
 		if (verbose)
-			std::cerr << "ERROR: bad signature material found" << std::endl;
+		{
+			std::cerr << "ERROR: bad signature material found" <<
+				std::endl;
+		}
 		return false;
 	}
 	tmcg_openpgp_octets_t trailer, left, hash;
@@ -827,19 +1031,25 @@ bool TMCG_OpenPGP_Signature::Verify
 	else
 	{
 		if (verbose)
-			std::cerr << "ERROR: signature version not supported" << std::endl;
+		{
+			std::cerr << "ERROR: signature version not supported" <<
+				std::endl;
+		}
 		return false;
 	}
 	if (verbose > 2)
-		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
-			" " << (int)left[1] << std::dec << std::endl;
-	if (CheckIntegrity(key, hash, verbose))
 	{
-		valid = true;
-		return true;
+		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
+			" " << (int)left[1] << std::endl << "INFO: hash = ";
+		for (size_t i = 0; i < hash.size(); i++)
+			std::cerr << (int)hash[i] << " ";
+		std::cerr << std::dec << std::endl;
 	}
 	valid = false;
-	return false;
+	if (!CheckIntegrity(key, hash, verbose))
+		return false;
+	valid = true;
+	return true;
 }
 
 bool TMCG_OpenPGP_Signature::Verify
@@ -850,7 +1060,10 @@ bool TMCG_OpenPGP_Signature::Verify
 	if (!Good())
 	{
 		if (verbose)
-			std::cerr << "ERROR: bad signature material found" << std::endl;
+		{
+			std::cerr << "ERROR: bad signature material found" <<
+				std::endl;
+		}
 		return false;
 	}
 	tmcg_openpgp_octets_t trailer, left, hash;
@@ -892,19 +1105,25 @@ bool TMCG_OpenPGP_Signature::Verify
 	else
 	{
 		if (verbose)
-			std::cerr << "ERROR: signature version not supported" << std::endl;
+		{
+			std::cerr << "ERROR: signature version not supported" <<
+				std::endl;
+		}
 		return false;
 	}
 	if (verbose > 2)
-		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
-			" " << (int)left[1] << std::dec << std::endl;
-	if (CheckIntegrity(key, hash, verbose))
 	{
-		valid = true;
-		return true;
+		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
+			" " << (int)left[1] << std::endl << "INFO: hash = ";
+		for (size_t i = 0; i < hash.size(); i++)
+			std::cerr << (int)hash[i] << " ";
+		std::cerr << std::dec << std::endl;
 	}
 	valid = false;
-	return false;
+	if (!CheckIntegrity(key, hash, verbose))
+		return false;
+	valid = true;
+	return true;
 }
 
 bool TMCG_OpenPGP_Signature::Verify
@@ -916,7 +1135,10 @@ bool TMCG_OpenPGP_Signature::Verify
 	if (!Good())
 	{
 		if (verbose)
-			std::cerr << "ERROR: bad signature material found" << std::endl;
+		{
+			std::cerr << "ERROR: bad signature material found" <<
+				std::endl;
+		}
 		return false;
 	}
 	tmcg_openpgp_octets_t trailer, left, hash;
@@ -929,7 +1151,8 @@ bool TMCG_OpenPGP_Signature::Verify
 		trailer.insert(trailer.end(),
 			sigtime_octets.begin(), sigtime_octets.end());
 		CallasDonnerhackeFinneyShawThayerRFC4880::
-			KeyHashV3(pub_hashing, sub_hashing, trailer, hashalgo, hash, left);
+			KeyHashV3(pub_hashing, sub_hashing, trailer,
+				hashalgo, hash, left);
 	}
 	else if (version == 4)
 	{
@@ -941,7 +1164,8 @@ bool TMCG_OpenPGP_Signature::Verify
 		trailer.push_back(hspd.size() & 0xFF);
 		trailer.insert(trailer.end(), hspd.begin(), hspd.end());
 		CallasDonnerhackeFinneyShawThayerRFC4880::
-			KeyHash(pub_hashing, sub_hashing, trailer, hashalgo, hash, left);
+			KeyHash(pub_hashing, sub_hashing, trailer,
+				hashalgo, hash, left);
 	}
 	else if (version == 5)
 	{
@@ -953,24 +1177,31 @@ bool TMCG_OpenPGP_Signature::Verify
 		trailer.push_back(hspd.size() & 0xFF);
 		trailer.insert(trailer.end(), hspd.begin(), hspd.end());
 		CallasDonnerhackeFinneyShawThayerRFC4880::
-			KeyHashV5(pub_hashing, sub_hashing, trailer, hashalgo, hash, left);
+			KeyHashV5(pub_hashing, sub_hashing, trailer,
+				hashalgo, hash, left);
 	}
 	else
 	{
 		if (verbose)
-			std::cerr << "ERROR: signature version not supported" << std::endl;
+		{
+			std::cerr << "ERROR: signature version not supported" <<
+				std::endl;
+		}
 		return false;
 	}
 	if (verbose > 2)
-		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
-			" " << (int)left[1] << std::dec << std::endl;
-	if (CheckIntegrity(key, hash, verbose))
 	{
-		valid = true;
-		return true;
+		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
+			" " << (int)left[1] << std::endl << "INFO: hash = ";
+		for (size_t i = 0; i < hash.size(); i++)
+			std::cerr << (int)hash[i] << " ";
+		std::cerr << std::dec << std::endl;
 	}
 	valid = false;
-	return false;
+	if (!CheckIntegrity(key, hash, verbose))
+		return false;
+	valid = true;
+	return true;
 }
 
 bool TMCG_OpenPGP_Signature::Verify
@@ -982,7 +1213,10 @@ bool TMCG_OpenPGP_Signature::Verify
 	if (!Good())
 	{
 		if (verbose)
-			std::cerr << "ERROR: bad signature material found" << std::endl;
+		{
+			std::cerr << "ERROR: bad signature material found" <<
+				std::endl;
+		}
 		return false;
 	}
 	tmcg_openpgp_octets_t trailer, left, hash;
@@ -996,7 +1230,7 @@ bool TMCG_OpenPGP_Signature::Verify
 			sigtime_octets.begin(), sigtime_octets.end());
 		CallasDonnerhackeFinneyShawThayerRFC4880::
 			CertificationHashV3(pub_hashing, userid, trailer,
-			hashalgo, hash, left);
+				hashalgo, hash, left);
 	}
 	else if (version == 4)
 	{
@@ -1010,7 +1244,7 @@ bool TMCG_OpenPGP_Signature::Verify
 		trailer.insert(trailer.end(), hspd.begin(), hspd.end());
 		CallasDonnerhackeFinneyShawThayerRFC4880::
 			CertificationHash(pub_hashing, userid, empty, trailer,
-			hashalgo, hash, left);	
+				hashalgo, hash, left);	
 	}
 	else if (version == 5)
 	{
@@ -1024,24 +1258,30 @@ bool TMCG_OpenPGP_Signature::Verify
 		trailer.insert(trailer.end(), hspd.begin(), hspd.end());
 		CallasDonnerhackeFinneyShawThayerRFC4880::
 			CertificationHashV5(pub_hashing, userid, empty, trailer,
-			hashalgo, hash, left);	
+				hashalgo, hash, left);	
 	}
 	else
 	{
 		if (verbose)
-			std::cerr << "ERROR: signature version not supported" << std::endl;
+		{
+			std::cerr << "ERROR: signature version not supported" <<
+				std::endl;
+		}
 		return false;
 	}
 	if (verbose > 2)
-		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
-			" " << (int)left[1] << std::dec << std::endl;
-	if (CheckIntegrity(key, hash, verbose))
 	{
-		valid = true;
-		return true;
+		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
+			" " << (int)left[1] << std::endl << "INFO: hash = ";
+		for (size_t i = 0; i < hash.size(); i++)
+			std::cerr << (int)hash[i] << " ";
+		std::cerr << std::dec << std::endl;
 	}
 	valid = false;
-	return false;
+	if (!CheckIntegrity(key, hash, verbose))
+		return false;
+	valid = true;
+	return true;
 }
 
 bool TMCG_OpenPGP_Signature::Verify
@@ -1054,7 +1294,10 @@ bool TMCG_OpenPGP_Signature::Verify
 	if (!Good())
 	{
 		if (verbose)
-			std::cerr << "ERROR: bad signature material found" << std::endl;
+		{
+			std::cerr << "ERROR: bad signature material found" <<
+				std::endl;
+		}
 		return false;
 	}
 	tmcg_openpgp_octets_t trailer, left, hash;
@@ -1069,7 +1312,7 @@ bool TMCG_OpenPGP_Signature::Verify
 		trailer.insert(trailer.end(), hspd.begin(), hspd.end());
 		CallasDonnerhackeFinneyShawThayerRFC4880::
 			CertificationHash(pub_hashing, "", userattribute, trailer,
-			hashalgo, hash, left);
+				hashalgo, hash, left);
 		if (dummy)
 			trailer.clear();
 	}
@@ -1084,31 +1327,53 @@ bool TMCG_OpenPGP_Signature::Verify
 		trailer.insert(trailer.end(), hspd.begin(), hspd.end());
 		CallasDonnerhackeFinneyShawThayerRFC4880::
 			CertificationHashV5(pub_hashing, "", userattribute, trailer,
-			hashalgo, hash, left);
+				hashalgo, hash, left);
 		if (dummy)
 			trailer.clear();
 	}
 	else
 	{
 		if (verbose)
-			std::cerr << "ERROR: signature version not supported" << std::endl;
+		{
+			std::cerr << "ERROR: signature version not supported" <<
+				std::endl;
+		}
 		return false;
 	}
 	if (verbose > 2)
-		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
-			" " << (int)left[1] << std::dec << std::endl;
-	if (CheckIntegrity(key, hash, verbose))
 	{
-		valid = true;
-		return true;
+		std::cerr << "INFO: left = " << std::hex << (int)left[0] <<
+			" " << (int)left[1] << std::endl << "INFO: hash = ";
+		for (size_t i = 0; i < hash.size(); i++)
+			std::cerr << (int)hash[i] << " ";
+		std::cerr << std::dec << std::endl;
 	}
 	valid = false;
-	return false;
+	if (!CheckIntegrity(key, hash, verbose))
+		return false;
+	valid = true;
+	return true;
 }
 
 bool TMCG_OpenPGP_Signature::operator <
 	(const TMCG_OpenPGP_Signature &that) const
 {
+	if (creationtime == that.creationtime)
+	{
+		size_t len_compare = std::min(issuerfpr.size(), that.issuerfpr.size());
+		for (size_t i = 0; i < len_compare; i++)
+		{
+			if (issuerfpr[i] != that.issuerfpr[i])
+				return (issuerfpr[i] < that.issuerfpr[i]);
+		}
+		len_compare = std::min(packet.size(), that.packet.size());
+		for (size_t i = 0; i < len_compare; i++)
+		{
+			if (packet[i] != that.packet[i])
+				return (packet[i] < that.packet[i]);
+		}
+		return false;
+	}
 	return (creationtime < that.creationtime);
 }
 
@@ -1131,6 +1396,15 @@ TMCG_OpenPGP_Signature::~TMCG_OpenPGP_Signature
 	keyprefs_pca.clear();
 	keyprefs_paa.clear();
 	revkeys.clear();
+	for (size_t i = 0; i < embeddedsigs.size(); i++)
+		embeddedsigs[i].clear();
+	embeddedsigs.clear();
+	for (size_t i = 0; i < recipientfprs.size(); i++)
+		recipientfprs[i].clear();
+	recipientfprs.clear();
+	for (size_t i = 0; i < attestedcerts.size(); i++)
+		attestedcerts[i].clear();
+	attestedcerts.clear();
 }
 
 bool TMCG_OpenPGP_Signature_Compare
@@ -1166,7 +1440,7 @@ bool TMCG_OpenPGP_UserID::Check
 		if (verbose > 2)
 			revsigs[j]->PrintInfo();
 		if (!revsigs[j]->CheckValidity(primary->creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (revsigs[j]->revoked)
 			continue; // ignore a revoked signature
 		// check the revocation signature cryptographically
@@ -1182,8 +1456,10 @@ bool TMCG_OpenPGP_UserID::Check
 			revoked = true;
 		}
 		else if (verbose)
-			std::cerr << "WARNING: revocation signature" <<
+		{
+			std::cerr << "WARNING: revocation signature " <<
 				"verification failed" << std::endl;
+		}
 	}
 	bool one_valid_selfsig = false;
 	std::sort(selfsigs.begin(), selfsigs.end(),
@@ -1194,7 +1470,7 @@ bool TMCG_OpenPGP_UserID::Check
 		if (verbose > 2)
 			selfsigs[j]->PrintInfo();
 		if (!selfsigs[j]->CheckValidity(primary->creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (selfsigs[j]->revoked)
 			continue; // ignore a revoked signature
 		// check the self-signature cryptographically
@@ -1204,8 +1480,10 @@ bool TMCG_OpenPGP_UserID::Check
 			one_valid_selfsig = true;
 		}
 		else if (verbose)
-			std::cerr << "WARNING: self-signature verification" <<
-				" failed" << std::endl;
+		{
+			std::cerr << "WARNING: self-signature verification " <<
+				"failed" << std::endl;
+		}
 	}
 	// update validity state of this user ID and return the result
 	if (one_valid_selfsig)
@@ -1216,6 +1494,158 @@ bool TMCG_OpenPGP_UserID::Check
 	else
 	{
 		valid = false;
+		return false;
+	}
+}
+
+size_t TMCG_OpenPGP_UserID::AccumulateAttestations
+	(const TMCG_OpenPGP_Pubkey *primary,
+	 const int verbose)
+{
+	time_t last_attestation = 0;
+	for (size_t i = 0; i < attestations.size(); i++)
+		attestations[i].clear();
+	attestations.clear();
+	attestations_hashalgo.clear();
+	std::sort(attestsigs.begin(), attestsigs.end(),
+		TMCG_OpenPGP_Signature_Compare);
+	for (size_t j = 0; j < attestsigs.size(); j++)
+	{
+		// print and check basic properties of the signature
+		if (verbose > 2)
+			attestsigs[j]->PrintInfo();
+		if (!attestsigs[j]->CheckValidity(primary->creationtime, verbose))
+			continue; // ignore an expired or insecure signature
+		// check the self-signature cryptographically
+		if (attestsigs[j]->Verify(primary->key, primary->pub_hashing,
+		                        userid, verbose))
+		{
+			// Only the most recent Attestation Key Signature is valid for
+			// any given <key,userid> pair. If more than one Certification
+			// Attestation Key Signature is present with the same Signature
+			// Creation Time, the set of attestations should be treated as
+			// the union of all "Attested Certifications" subpackets from
+			// all such signatures with the same timestamp.
+			if (last_attestation != attestsigs[j]->creationtime)
+			{
+				last_attestation = attestsigs[j]->creationtime;
+				for (size_t i = 0; i < attestations.size(); i++)
+					attestations[i].clear();
+				attestations.clear();
+				attestations_hashalgo.clear();
+			}
+			for (size_t i = 0; i < attestsigs[j]->attestedcerts.size(); i++)
+			{
+				attestations.push_back(attestsigs[j]->attestedcerts[i]);
+				attestations_hashalgo.push_back(attestsigs[j]->hashalgo);
+			}
+		}
+		else if (verbose)
+		{
+			std::cerr << "WARNING: attestation signature verification " <<
+				"failed" << std::endl;
+		}
+	}
+	return attestations.size();
+}
+
+bool TMCG_OpenPGP_UserID::CheckAttestations
+	(const TMCG_OpenPGP_Pubkey *primary,
+	 const int verbose)
+{
+	bool one_valid_attestation = false;
+	if (AccumulateAttestations(primary, verbose) > 0)
+	{
+		if (attestations.size() != attestations_hashalgo.size())
+			return false;
+		for (size_t i = 0; i < attestations_hashalgo.size(); i++)
+		{
+			tmcg_openpgp_hashalgo_t hashalgo = attestations_hashalgo[i];
+			for (size_t j = 0; j < certsigs.size(); j++)
+			{
+				if (certsigs[j]->attested)
+				{
+					one_valid_attestation = true;
+					continue; // skip already attested signatures
+				}
+				TMCG_OpenPGP_Signature *sig = certsigs[j];
+				tmcg_openpgp_octets_t sigpkt, hash_input, hash;
+				// The listed digests MUST be calculated over the third-party
+				// certification's Signature packet as described in the
+				// "Computing Signatures" section, but without a trailer: the
+				// hash data starts with the octet 0x88, followed by the
+				// four-octet length of the Signature, and then the body of
+				// the Signature packet. (Note that this is an old-style
+				// packet header for a Signature packet with the length-of-
+				// length field set to zero.) The unhashed subpacket data of
+				// the Signature packet being hashed is not included in the
+				// hash, and the unhashed subpacket data length value is set
+				// to zero.
+				sigpkt.push_back(sig->version);
+				sigpkt.push_back(sig->type);
+				sigpkt.push_back(sig->pkalgo);
+				sigpkt.push_back(sig->hashalgo);
+				sigpkt.push_back((sig->hspd.size() >> 8) & 0xFF);
+				sigpkt.push_back(sig->hspd.size() & 0xFF);
+				sigpkt.insert(sigpkt.end(),
+					sig->hspd.begin(), sig->hspd.end());
+				sigpkt.push_back(0x00);
+				sigpkt.push_back(0x00);
+				sigpkt.insert(sigpkt.end(), sig->left.begin(), sig->left.end());
+				switch (sig->pkalgo)
+				{
+					case TMCG_OPENPGP_PKALGO_RSA:
+					case TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY:
+						CallasDonnerhackeFinneyShawThayerRFC4880::
+							PacketMPIEncode(sig->rsa_md, sigpkt);
+						break;
+					case TMCG_OPENPGP_PKALGO_DSA:
+					case TMCG_OPENPGP_PKALGO_ECDSA:
+					case TMCG_OPENPGP_PKALGO_EDDSA:
+						CallasDonnerhackeFinneyShawThayerRFC4880::
+							PacketMPIEncode(sig->dsa_r, sigpkt);
+						CallasDonnerhackeFinneyShawThayerRFC4880::
+							PacketMPIEncode(sig->dsa_s, sigpkt);
+						break;
+					default:
+						if (verbose)
+						{
+							std::cerr << "INFO: bad public-key algorithm for" <<
+								" attesting user ID \"" << userid_sanitized <<
+								"\"" << std::endl;
+						}			
+						continue; // skip this signature
+				}
+				hash_input.push_back(0x88);
+				hash_input.push_back((sigpkt.size() >> 24) & 0xFF);
+				hash_input.push_back((sigpkt.size() >> 16) & 0xFF);
+				hash_input.push_back((sigpkt.size() >> 8) & 0xFF);
+				hash_input.push_back(sigpkt.size() & 0xFF);
+				hash_input.insert(hash_input.end(),
+					sigpkt.begin(), sigpkt.end());
+				CallasDonnerhackeFinneyShawThayerRFC4880::
+					HashCompute(hashalgo, hash_input, hash);
+				if (CallasDonnerhackeFinneyShawThayerRFC4880::
+					OctetsCompare(hash, attestations[i]))
+				{
+					certsigs[j]->attested = true;
+					one_valid_attestation = true;
+					if (verbose > 1)
+					{
+						std::cerr << "INFO: valid attestation " <<
+							"found at i = " << i << " and " <<
+							"j = " << j << std::endl; 
+					}
+				}
+			}
+		}
+	}
+	if (one_valid_attestation)
+	{
+		return true;
+	}
+	else
+	{
 		return false;
 	}
 }
@@ -1233,6 +1663,13 @@ TMCG_OpenPGP_UserID::~TMCG_OpenPGP_UserID
 	for (size_t i = 0; i < certsigs.size(); i++)
 		delete certsigs[i];
 	certsigs.clear();
+	for (size_t i = 0; i < attestsigs.size(); i++)
+		delete attestsigs[i];
+	attestsigs.clear();
+	for (size_t i = 0; i < attestations.size(); i++)
+		attestations[i].clear();
+	attestations.clear();
+	attestations_hashalgo.clear();
 }
 
 // ===========================================================================
@@ -1260,7 +1697,7 @@ bool TMCG_OpenPGP_UserAttribute::Check
 		if (verbose > 2)
 			revsigs[j]->PrintInfo();
 		if (!revsigs[j]->CheckValidity(primary->creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (revsigs[j]->revoked)
 			continue; // ignore a revoked signature
 		// check the revocation signature cryptographically
@@ -1276,8 +1713,10 @@ bool TMCG_OpenPGP_UserAttribute::Check
 			revoked = true;
 		}
 		else if (verbose)
-			std::cerr << "WARNING: revocation signature" <<
-				" verification failed" << std::endl;
+		{
+			std::cerr << "WARNING: revocation signature " <<
+				"verification failed" << std::endl;
+		}
 	}
 	bool one_valid_selfsig = false;
 	std::sort(selfsigs.begin(), selfsigs.end(),
@@ -1288,7 +1727,7 @@ bool TMCG_OpenPGP_UserAttribute::Check
 		if (verbose > 2)
 			selfsigs[j]->PrintInfo();
 		if (!selfsigs[j]->CheckValidity(primary->creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (selfsigs[j]->revoked)
 			continue; // ignore a revoked signature
 		// check the self-signature cryptographically
@@ -1298,8 +1737,10 @@ bool TMCG_OpenPGP_UserAttribute::Check
 			one_valid_selfsig = true;
 		}
 		else if (verbose)
-			std::cerr << "WARNING: self-signature verification" <<
-				" failed" << std::endl;
+		{
+			std::cerr << "WARNING: self-signature verification " <<
+				"failed" << std::endl;
+		}
 	}
 	// update validity state of this user attribute and return the result
 	if (one_valid_selfsig)
@@ -1310,6 +1751,157 @@ bool TMCG_OpenPGP_UserAttribute::Check
 	else
 	{
 		valid = false;
+		return false;
+	}
+}
+
+size_t TMCG_OpenPGP_UserAttribute::AccumulateAttestations
+	(const TMCG_OpenPGP_Pubkey *primary,
+	 const int verbose)
+{
+	time_t last_attestation = 0;
+	for (size_t i = 0; i < attestations.size(); i++)
+		attestations[i].clear();
+	attestations.clear();
+	attestations_hashalgo.clear();
+	std::sort(attestsigs.begin(), attestsigs.end(),
+		TMCG_OpenPGP_Signature_Compare);
+	for (size_t j = 0; j < attestsigs.size(); j++)
+	{
+		// print and check basic properties of the signature
+		if (verbose > 2)
+			attestsigs[j]->PrintInfo();
+		if (!attestsigs[j]->CheckValidity(primary->creationtime, verbose))
+			continue; // ignore an expired or insecure signature
+		// check the self-signature cryptographically
+		if (attestsigs[j]->Verify(primary->key, primary->pub_hashing,
+		                        userattribute, verbose))
+		{
+			// Only the most recent Attestation Key Signature is valid for
+			// any given <key,userid> pair. If more than one Certification
+			// Attestation Key Signature is present with the same Signature
+			// Creation Time, the set of attestations should be treated as
+			// the union of all "Attested Certifications" subpackets from
+			// all such signatures with the same timestamp.
+			if (last_attestation != attestsigs[j]->creationtime)
+			{
+				last_attestation = attestsigs[j]->creationtime;
+				for (size_t i = 0; i < attestations.size(); i++)
+					attestations[i].clear();
+				attestations.clear();
+				attestations_hashalgo.clear();
+			}
+			for (size_t i = 0; i < attestsigs[j]->attestedcerts.size(); i++)
+			{
+				attestations.push_back(attestsigs[j]->attestedcerts[i]);
+				attestations_hashalgo.push_back(attestsigs[j]->hashalgo);
+			}
+		}
+		else if (verbose)
+		{
+			std::cerr << "WARNING: attestation signature verification " <<
+				"failed" << std::endl;
+		}
+	}
+	return attestations.size();
+}
+
+bool TMCG_OpenPGP_UserAttribute::CheckAttestations
+	(const TMCG_OpenPGP_Pubkey *primary,
+	 const int verbose)
+{
+	bool one_valid_attestation = false;
+	if (AccumulateAttestations(primary, verbose) > 0)
+	{
+		if (attestations.size() != attestations_hashalgo.size())
+			return false;
+		for (size_t i = 0; i < attestations_hashalgo.size(); i++)
+		{
+			tmcg_openpgp_hashalgo_t hashalgo = attestations_hashalgo[i];
+			for (size_t j = 0; j < certsigs.size(); j++)
+			{
+				if (certsigs[j]->attested)
+				{
+					one_valid_attestation = true;
+					continue; // skip already attested signatures
+				}
+				TMCG_OpenPGP_Signature *sig = certsigs[j];
+				tmcg_openpgp_octets_t sigpkt, hash_input, hash;
+				// The listed digests MUST be calculated over the third-party
+				// certification's Signature packet as described in the
+				// "Computing Signatures" section, but without a trailer: the
+				// hash data starts with the octet 0x88, followed by the
+				// four-octet length of the Signature, and then the body of
+				// the Signature packet. (Note that this is an old-style
+				// packet header for a Signature packet with the length-of-
+				// length field set to zero.) The unhashed subpacket data of
+				// the Signature packet being hashed is not included in the
+				// hash, and the unhashed subpacket data length value is set
+				// to zero.
+				sigpkt.push_back(sig->version);
+				sigpkt.push_back(sig->type);
+				sigpkt.push_back(sig->pkalgo);
+				sigpkt.push_back(sig->hashalgo);
+				sigpkt.push_back((sig->hspd.size() >> 8) & 0xFF);
+				sigpkt.push_back(sig->hspd.size() & 0xFF);
+				sigpkt.insert(sigpkt.end(),
+					sig->hspd.begin(), sig->hspd.end());
+				sigpkt.push_back(0x00);
+				sigpkt.push_back(0x00);
+				sigpkt.insert(sigpkt.end(), sig->left.begin(), sig->left.end());
+				switch (sig->pkalgo)
+				{
+					case TMCG_OPENPGP_PKALGO_RSA:
+					case TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY:
+						CallasDonnerhackeFinneyShawThayerRFC4880::
+							PacketMPIEncode(sig->rsa_md, sigpkt);
+						break;
+					case TMCG_OPENPGP_PKALGO_DSA:
+					case TMCG_OPENPGP_PKALGO_ECDSA:
+					case TMCG_OPENPGP_PKALGO_EDDSA:
+						CallasDonnerhackeFinneyShawThayerRFC4880::
+							PacketMPIEncode(sig->dsa_r, sigpkt);
+						CallasDonnerhackeFinneyShawThayerRFC4880::
+							PacketMPIEncode(sig->dsa_s, sigpkt);
+						break;
+					default:
+						if (verbose)
+						{
+							std::cerr << "INFO: bad public-key algorithm for" <<
+								" attesting user attribute" << std::endl;
+						}			
+						continue; // skip this signature
+				}
+				hash_input.push_back(0x88);
+				hash_input.push_back((sigpkt.size() >> 24) & 0xFF);
+				hash_input.push_back((sigpkt.size() >> 16) & 0xFF);
+				hash_input.push_back((sigpkt.size() >> 8) & 0xFF);
+				hash_input.push_back(sigpkt.size() & 0xFF);
+				hash_input.insert(hash_input.end(),
+					sigpkt.begin(), sigpkt.end());
+				CallasDonnerhackeFinneyShawThayerRFC4880::
+					HashCompute(hashalgo, hash_input, hash);
+				if (CallasDonnerhackeFinneyShawThayerRFC4880::
+					OctetsCompare(hash, attestations[i]))
+				{
+					certsigs[j]->attested = true;
+					one_valid_attestation = true;
+					if (verbose > 1)
+					{
+						std::cerr << "INFO: valid attestation " <<
+							"found at i = " << i << " and " <<
+							"j = " << j << std::endl; 
+					}
+				}
+			}
+		}
+	}
+	if (one_valid_attestation)
+	{
+		return true;
+	}
+	else
+	{
 		return false;
 	}
 }
@@ -1328,6 +1920,13 @@ TMCG_OpenPGP_UserAttribute::~TMCG_OpenPGP_UserAttribute
 	for (size_t i = 0; i < certsigs.size(); i++)
 		delete certsigs[i];
 	certsigs.clear();
+	for (size_t i = 0; i < attestsigs.size(); i++)
+		delete attestsigs[i];
+	attestsigs.clear();
+	for (size_t i = 0; i < attestations.size(); i++)
+		attestations[i].clear();
+	attestations.clear();
+	attestations_hashalgo.clear();
 }
 
 // ===========================================================================
@@ -1338,9 +1937,11 @@ TMCG_OpenPGP_Subkey::TMCG_OpenPGP_Subkey
 		erroff(0),
 		valid(false),
 		revoked(false),
+		expired(false),
 		pkalgo(TMCG_OPENPGP_PKALGO_RSA),
 		creationtime(0),
 		expirationtime(0),
+		bindingtime(0),
 		key(NULL),
 		ec_curve(""),
 		kdf_hashalgo(TMCG_OPENPGP_HASHALGO_UNKNOWN),
@@ -1375,9 +1976,11 @@ TMCG_OpenPGP_Subkey::TMCG_OpenPGP_Subkey
 		erroff(0),
 		valid(false),
 		revoked(false),
+		expired(false),
 		pkalgo(pkalgo_in),
 		creationtime(creationtime_in),
 		expirationtime(expirationtime_in),
+		bindingtime(0),
 		key(NULL),
 		ec_curve(""),
 		kdf_hashalgo(TMCG_OPENPGP_HASHALGO_UNKNOWN),
@@ -1436,9 +2039,11 @@ TMCG_OpenPGP_Subkey::TMCG_OpenPGP_Subkey
 		erroff(0),
 		valid(false),
 		revoked(false),
+		expired(false),
 		pkalgo(pkalgo_in),
 		creationtime(creationtime_in),
 		expirationtime(expirationtime_in),
+		bindingtime(0),
 		key(NULL),
 		ec_curve(""),
 		kdf_hashalgo(TMCG_OPENPGP_HASHALGO_UNKNOWN),
@@ -1499,9 +2104,11 @@ TMCG_OpenPGP_Subkey::TMCG_OpenPGP_Subkey
 		erroff(0),
 		valid(false),
 		revoked(false),
+		expired(false),
 		pkalgo(pkalgo_in),
 		creationtime(creationtime_in),
 		expirationtime(expirationtime_in),
+		bindingtime(0),
 		key(NULL),
 		ec_curve(""),
 		kdf_hashalgo(TMCG_OPENPGP_HASHALGO_UNKNOWN),
@@ -1562,9 +2169,11 @@ TMCG_OpenPGP_Subkey::TMCG_OpenPGP_Subkey
 		erroff(0),
 		valid(false),
 		revoked(false),
+		expired(false),
 		pkalgo(pkalgo_in),
 		creationtime(creationtime_in),
 		expirationtime(expirationtime_in),
+		bindingtime(0),
 		key(NULL),
 		kdf_hashalgo(TMCG_OPENPGP_HASHALGO_UNKNOWN),
 		kdf_skalgo(TMCG_OPENPGP_SKALGO_PLAINTEXT)
@@ -1651,9 +2260,11 @@ TMCG_OpenPGP_Subkey::TMCG_OpenPGP_Subkey
 		erroff(0),
 		valid(false),
 		revoked(false),
+		expired(false),
 		pkalgo(pkalgo_in),
 		creationtime(creationtime_in),
 		expirationtime(expirationtime_in),
+		bindingtime(0),
 		key(NULL),
 		kdf_hashalgo(kdf_hashalgo_in),
 		kdf_skalgo(kdf_skalgo_in)
@@ -1736,9 +2347,11 @@ bool TMCG_OpenPGP_Subkey::Weak
 		nbits = gcry_mpi_get_nbits(rsa_n);
 		ebits = gcry_mpi_get_nbits(rsa_e);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: RSA with |n| = " <<
 				nbits << " bits, |e| = " <<
 				ebits << " bits" << std::endl;
+		}
 		if ((nbits < 2048) || (ebits < 6))
 			return true; // weak key
 		wret = gcry_prime_check(rsa_e, 0);
@@ -1752,10 +2365,12 @@ bool TMCG_OpenPGP_Subkey::Weak
 		gbits = gcry_mpi_get_nbits(elg_g);
 		ybits = gcry_mpi_get_nbits(elg_y);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: ElGamal with |p| = " <<
 				pbits << " bits, |g| = " <<
 				gbits << " bits, |y| = " <<
 				ybits << " bits" << std::endl;
+		}
 		if ((pbits < 2048) || (gbits < 2) || (ybits < 2))
 			return true; // weak key
 		wret = gcry_prime_check(elg_p, 0);
@@ -1770,11 +2385,13 @@ bool TMCG_OpenPGP_Subkey::Weak
 		gbits = gcry_mpi_get_nbits(dsa_g);
 		ybits = gcry_mpi_get_nbits(dsa_y);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: DSA with |p| = " <<
 				pbits << " bits, |q| = " <<
 				qbits << " bits, |g| = " <<
 				gbits << " bits, |y| = " <<
 				ybits << " bits" <<	std::endl;
+		}
 		if ((pbits < 2048) || (qbits < 256) || (gbits < 2) || (ybits < 2))
 			return true; // weak key
 		wret = gcry_prime_check(dsa_p, 0);
@@ -1827,9 +2444,11 @@ bool TMCG_OpenPGP_Subkey::Weak
 		if (curvename != NULL)
 		{
 			if (verbose > 1)
+			{
 				std::cerr << "INFO: ECDSA with curve \"" << curvename <<
 					"\" and " << curvebits << " bits" << std::endl;
-			if (curvebits < 256)
+			}
+			if (curvebits < 255)
 				return true; // weak key
 		}
 		else
@@ -1846,9 +2465,11 @@ bool TMCG_OpenPGP_Subkey::Weak
 		if (curvename != NULL)
 		{
 			if (verbose > 1)
+			{
 				std::cerr << "INFO: EdDSA with curve \"" << curvename <<
 					"\" and " << curvebits << " bits" << std::endl;
-			if (curvebits < 256)
+			}
+			if (curvebits < 255)
 				return true; // weak key
 		}
 		else
@@ -1906,77 +2527,100 @@ void TMCG_OpenPGP_Subkey::UpdateProperties
 	(const TMCG_OpenPGP_Signature *sig,
 	 const int verbose)
 {
-	expirationtime = sig->keyexpirationtime;
-	if (verbose > 1)
-		std::cerr << "INFO: subkey update expirationtime to " <<
-			expirationtime << std::endl;
-	if (verbose > 1)
-		std::cerr << "INFO: subkey update flags to " << std::hex;
-	flags.clear();			
-	for (size_t i = 0; i < sig->keyflags.size(); i++)
+	if (sig->keyexpirationtime > 0)
 	{
-		flags.push_back(sig->keyflags[i]);
+		expirationtime = sig->keyexpirationtime;
 		if (verbose > 1)
-			std::cerr << (int)sig->keyflags[i] << " ";
+		{
+			std::cerr << "INFO: subkey update expirationtime to " <<
+				expirationtime << std::endl;
+		}
+		if (verbose > 1)
+			std::cerr << "INFO: subkey update flags to " << std::hex;
 	}
-	if (verbose > 1)
-		std::cerr << std::dec << std::endl;
-	if (verbose > 1)
-		std::cerr << "INFO: subkey update features to " << std::hex;
-	features.clear();
-	for (size_t i = 0; i < sig->keyfeatures.size(); i++)
+	if (sig->keyflags.size() > 0)
 	{
-		features.push_back(sig->keyfeatures[i]);
+		flags.clear();			
+		for (size_t i = 0; i < sig->keyflags.size(); i++)
+		{
+			flags.push_back(sig->keyflags[i]);
+			if (verbose > 1)
+				std::cerr << (int)sig->keyflags[i] << " ";
+		}
 		if (verbose > 1)
-			std::cerr << (int)sig->keyfeatures[i] << " ";
+			std::cerr << std::dec << std::endl;
 	}
-	if (verbose > 1)
-		std::cerr << std::dec << std::endl;
-	if (verbose > 1)
-		std::cerr << "INFO: subkey update psa to ";
-	psa.clear();
-	for (size_t i = 0; i < sig->keyprefs_psa.size(); i++)
+	if (sig->keyfeatures.size() > 0)
 	{
-		psa.push_back(sig->keyprefs_psa[i]);
 		if (verbose > 1)
-			std::cerr << (int)sig->keyprefs_psa[i] << " ";
+			std::cerr << "INFO: subkey update features to " << std::hex;
+		features.clear();
+		for (size_t i = 0; i < sig->keyfeatures.size(); i++)
+		{
+			features.push_back(sig->keyfeatures[i]);
+			if (verbose > 1)
+				std::cerr << (int)sig->keyfeatures[i] << " ";
+		}
+		if (verbose > 1)
+			std::cerr << std::dec << std::endl;
 	}
-	if (verbose > 1)
-		std::cerr << std::endl;
-	if (verbose > 1)
-		std::cerr << "INFO: subkey update pha to ";
-	pha.clear();
-	for (size_t i = 0; i < sig->keyprefs_pha.size(); i++)
+	if (sig->keyprefs_psa.size() > 0)
 	{
-		pha.push_back(sig->keyprefs_pha[i]);
 		if (verbose > 1)
-			std::cerr << (int)sig->keyprefs_pha[i] << " ";
+			std::cerr << "INFO: subkey update psa to ";
+		psa.clear();
+		for (size_t i = 0; i < sig->keyprefs_psa.size(); i++)
+		{
+			psa.push_back(sig->keyprefs_psa[i]);
+			if (verbose > 1)
+				std::cerr << (int)sig->keyprefs_psa[i] << " ";
+		}
+		if (verbose > 1)
+			std::cerr << std::endl;
 	}
-	if (verbose > 1)
-		std::cerr << std::endl;
-	if (verbose > 1)
-		std::cerr << "INFO: subkey update pca to ";
-	pca.clear();
-	for (size_t i = 0; i < sig->keyprefs_pca.size(); i++)
+	if (sig->keyprefs_pha.size() > 0)
 	{
-		pca.push_back(sig->keyprefs_pca[i]);
 		if (verbose > 1)
-			std::cerr << (int)sig->keyprefs_pca[i] << " ";
+			std::cerr << "INFO: subkey update pha to ";
+		pha.clear();
+		for (size_t i = 0; i < sig->keyprefs_pha.size(); i++)
+		{
+			pha.push_back(sig->keyprefs_pha[i]);
+			if (verbose > 1)
+				std::cerr << (int)sig->keyprefs_pha[i] << " ";
+		}
+		if (verbose > 1)
+			std::cerr << std::endl;
 	}
-	if (verbose > 1)
-		std::cerr << std::endl;
-	if (verbose > 1)
-		std::cerr << "INFO: subkey update paa to ";
-	paa.clear();
-	for (size_t i = 0; i < sig->keyprefs_paa.size(); i++)
+	if (sig->keyprefs_pca.size() > 0)
 	{
-		paa.push_back(sig->keyprefs_paa[i]);
 		if (verbose > 1)
-			std::cerr << (int)sig->keyprefs_paa[i] << " ";
+			std::cerr << "INFO: subkey update pca to ";
+		pca.clear();
+		for (size_t i = 0; i < sig->keyprefs_pca.size(); i++)
+		{
+			pca.push_back(sig->keyprefs_pca[i]);
+			if (verbose > 1)
+				std::cerr << (int)sig->keyprefs_pca[i] << " ";
+		}
+		if (verbose > 1)
+			std::cerr << std::endl;
 	}
-	if (verbose > 1)
-		std::cerr << std::endl;
-	if (verbose > 1)
+	if (sig->keyprefs_paa.size() > 0)
+	{
+		if (verbose > 1)
+			std::cerr << "INFO: subkey update paa to ";
+		paa.clear();
+		for (size_t i = 0; i < sig->keyprefs_paa.size(); i++)
+		{
+			paa.push_back(sig->keyprefs_paa[i]);
+			if (verbose > 1)
+				std::cerr << (int)sig->keyprefs_paa[i] << " ";
+		}
+		if (verbose > 1)
+			std::cerr << std::endl;
+	}
+	if ((verbose > 1) && (sig->revkeys.size() > 0))
 		std::cerr << "INFO: subkey update revkeys with added ";
 	for (size_t i = 0; i < sig->revkeys.size(); i++)
 	{
@@ -2010,28 +2654,39 @@ void TMCG_OpenPGP_Subkey::UpdateProperties
 			std::cerr << "[" << fpr_str << "]";
 		}
 	}
-	if (verbose > 1)
+	if ((verbose > 1) && (sig->revkeys.size() > 0))
 		std::cerr << std::endl;
 }
 
 bool TMCG_OpenPGP_Subkey::CheckValidity
-	(const int verbose) const
+	(const int verbose)
 {
 	time_t current = time(NULL);
-	time_t fmax = 60 * 60 * 25; // deviation time: 25 hours
 	time_t kmax = creationtime + expirationtime;
 	if (expirationtime && (current > kmax))
 	{
 		if (verbose)
-			std::cerr << "WARNING: subkey has been expired" <<
-				std::endl;
+			std::cerr << "WARNING: subkey has been expired" << std::endl;
+		expired = true;
 		return false;
 	}
+	time_t fmax = 60 * 60 * 25; // deviation time: 25 hours
 	if (creationtime > (current + fmax))
 	{
 		if (verbose)
+		{
 			std::cerr << "WARNING: subkey has been created " <<
 				"in far future" << std::endl;
+		}
+		return false;
+	}
+	if (bindingtime && (creationtime > bindingtime))
+	{
+		if (verbose)
+		{
+			std::cerr << "WARNING: binding signature has been created " <<
+				"before subkey" << std::endl;
+		}
 		return false;
 	}
 	return true;
@@ -2044,15 +2699,13 @@ bool TMCG_OpenPGP_Subkey::CheckValidityPeriod
 	if (expirationtime && (at > kmax))
 	{
 		if (verbose)
-			std::cerr << "WARNING: not in validity period of subkey" <<
-				std::endl;
+			std::cerr << "WARNING: out of validity (subkey)" << std::endl;
 		return false;
 	}
 	if (creationtime > at)
 	{
 		if (verbose)
-			std::cerr << "WARNING: not in validity period of subkey" <<
-				std::endl;
+			std::cerr << "WARNING: out of validity (subkey)" << std::endl;
 		return false;
 	}
 	return true;
@@ -2089,8 +2742,10 @@ bool TMCG_OpenPGP_Subkey::CheckExternalRevocation
 		CallasDonnerhackeFinneyShawThayerRFC4880::
 			FingerprintConvertPlain(fpr, fprstr);
 		if (verbose > 2)
-			std::cerr << "INFO: looking for external revocation" <<
-				" key with fingerprint " << fprstr << std::endl;
+		{
+			std::cerr << "INFO: looking for external revocation " <<
+				"key with fingerprint " << fprstr << std::endl;
+		}
 		TMCG_OpenPGP_Pubkey *revkey = ring->Find(fprstr);
 		if (revkey != NULL)
 		{
@@ -2102,8 +2757,10 @@ bool TMCG_OpenPGP_Subkey::CheckExternalRevocation
 			if (!revkey->valid)
 			{
 				if (verbose)
+				{
 					std::cerr << "WARNING: revocation key is not valid" <<
 						std::endl;
+				}
 				continue;
 			}
 			if (sig->Verify(revkey->key, sub_hashing, verbose))
@@ -2153,6 +2810,12 @@ bool TMCG_OpenPGP_Subkey::Check
 		std::cerr << "INFO: number of revkeys = " <<
 			revkeys.size() << std::endl;
 	}
+	if (verbose > 2)
+	{
+		std::cerr << "INFO: creationtime = " << creationtime << std::endl;
+		std::cerr << "INFO: expirationtime = " << expirationtime << std::endl;
+		std::cerr << "INFO: bindingtime = " << bindingtime << std::endl;
+	}
 	// check whether there are valid revocation signatures for 0x1f sigs
 	for (size_t j = 0; j < certrevsigs.size(); j++)
 	{
@@ -2161,9 +2824,9 @@ bool TMCG_OpenPGP_Subkey::Check
 			certrevsigs[j]->PrintInfo();
 		if (!certrevsigs[j]->CheckValidity(primary->creationtime,
 		    verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (!certrevsigs[j]->CheckValidity(creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (certrevsigs[j]->revoked)
 			continue; // ignore a revoked signature
 		// check the revocation signature cryptographically
@@ -2174,8 +2837,10 @@ bool TMCG_OpenPGP_Subkey::Check
 			if (certrevsigs[j]->Verify(primary->key, sub_hashing, verbose))
 				valid_revsig = true;
 			else if (verbose)
-				std::cerr << "ERROR: signature verification" <<
-					" failed" << std::endl;
+			{
+				std::cerr << "ERROR: signature verification " <<
+					"failed" << std::endl;
+			}
 		}
 		else if (CallasDonnerhackeFinneyShawThayerRFC4880::
 			OctetsCompare(id, certrevsigs[j]->issuer))
@@ -2183,24 +2848,28 @@ bool TMCG_OpenPGP_Subkey::Check
 			if (certrevsigs[j]->Verify(key, sub_hashing, verbose))
 				valid_revsig = true;
 			else if (verbose)
-				std::cerr << "ERROR: signature verification" <<
-					" failed" << std::endl;
+			{
+				std::cerr << "ERROR: signature verification " <<
+					"failed" << std::endl;
+			}
 		}
 		else
 		{
 			valid_revsig = CheckExternalRevocation(certrevsigs[j], ring,
 				verbose);
 			if (!valid_revsig && verbose)
-				std::cerr << "WARNING: cannot verify revocation " <<
-					"signature of an external key due to missing " <<
-					"public key" << std::endl;
+			{
+				std::cerr << "WARNING: cannot verify revocation signature " <<
+					"of an external key due to missing public key" << std::endl;
+			}
 		}
 		if (valid_revsig)
 		{
 			if (verbose)
-				std::cerr << "WARNING: valid certification " <<
-					"revocation signature found for " <<
-					"subkey" << std::endl;			
+			{
+				std::cerr << "WARNING: valid certification revocation " <<
+					"signature found for subkey" << std::endl;
+			}
 			// TODO: check certrevsig.creationtime > selfsig.creation time
 			// TODO: mark ONLY corresponding 0x1f sig from selfsigs as revoked
 			// TODO: evaluate signature target subpacket, if available
@@ -2212,8 +2881,10 @@ bool TMCG_OpenPGP_Subkey::Check
 			}
 		}
 		else if (verbose)
+		{
 			std::cerr << "WARNING: invalid certification revocation " <<
 				"signature found for subkey" << std::endl;
+		}
 	}
 	// check whether some self-signatures (0x1f) on subkey are valid
 	std::sort(selfsigs.begin(), selfsigs.end(),
@@ -2225,9 +2896,9 @@ bool TMCG_OpenPGP_Subkey::Check
 			selfsigs[j]->PrintInfo();
 		if (!selfsigs[j]->CheckValidity(primary->creationtime,
 		    verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (!selfsigs[j]->CheckValidity(creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (selfsigs[j]->revoked)
 			continue; // ignore a revoked signature
 		// check the self-signature cryptographically
@@ -2242,8 +2913,10 @@ bool TMCG_OpenPGP_Subkey::Check
 			else
 			{
 				if (verbose)
-					std::cerr << "WARNING: self-signature verification" <<
-						" failed" << std::endl;
+				{
+					std::cerr << "WARNING: self-signature verification " <<
+						"failed" << std::endl;
+				}
 			}
 		}
 		else if (CallasDonnerhackeFinneyShawThayerRFC4880::
@@ -2257,8 +2930,8 @@ bool TMCG_OpenPGP_Subkey::Check
 			{
 				if (verbose)
 				{
-					std::cerr << "WARNING: self-signature verification" <<
-						" failed" << std::endl;
+					std::cerr << "WARNING: self-signature verification " <<
+						"failed" << std::endl;
 				}
 			}
 		}
@@ -2284,9 +2957,9 @@ bool TMCG_OpenPGP_Subkey::Check
 		if (verbose > 2)
 			bindsigs[j]->PrintInfo();
 		if (!bindsigs[j]->CheckValidity(primary->creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (!bindsigs[j]->CheckValidity(creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (bindsigs[j]->revoked)
 			continue; // ignore a revoked signature
 		// check the binding signature cryptographically
@@ -2297,18 +2970,29 @@ bool TMCG_OpenPGP_Subkey::Check
 			{
 				one_valid_bind = true;
 				UpdateProperties(bindsigs[j], verbose);
+				// set binding time to first valid subkey binding signature
+				if (bindingtime == 0)
+					bindingtime = bindsigs[j]->creationtime;
+				if (verbose > 1)
+				{
+					std::cerr << "INFO: bindingtime = " << bindingtime <<
+						std::endl;				
+				}
 			}
 			else
 			{
 				if (verbose)
+				{
 					std::cerr << "WARNING: binding signature verification " <<
 						"failed" << std::endl;
+				}
 			}
 		}
 		else if (verbose)
-			std::cerr << "WARNING: unknown binding signature " <<
-				"of type 0x" << std::hex <<
-				(int)bindsigs[j]->type << std::dec << std::endl;
+		{
+			std::cerr << "WARNING: unknown binding signature of type 0x" <<
+				std::hex << (int)bindsigs[j]->type << std::dec << std::endl;
+		}
 	}
 	// check validity again because property updates has been applied
 	if (!CheckValidity(verbose))
@@ -2325,9 +3009,9 @@ bool TMCG_OpenPGP_Subkey::Check
 		if (verbose > 2)
 			keyrevsigs[j]->PrintInfo();
 		if (!keyrevsigs[j]->CheckValidity(primary->creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (!keyrevsigs[j]->CheckValidity(creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (keyrevsigs[j]->revoked)
 			continue; // ignore a revoked signature
 		// check the revocation signature cryptographically
@@ -2337,32 +3021,41 @@ bool TMCG_OpenPGP_Subkey::Check
 		{
 			if (keyrevsigs[j]->Verify(primary->key, primary->pub_hashing,
 			    sub_hashing, verbose))
+			{
 				valid_revsig = true;
+			}
 			else if (verbose)
+			{
 				std::cerr << "ERROR: signature verification failed" <<
 					std::endl;
+			}
 		}
 		else
 		{
 			valid_revsig = CheckExternalRevocation(keyrevsigs[j], ring,
 				verbose);
 			if (!valid_revsig && verbose)
-				std::cerr << "WARNING: cannot verify revocation " <<
-					"signature of an external key due to missing " <<
-					"public key" << std::endl;
+			{
+				std::cerr << "WARNING: cannot verify revocation signature " <<
+					"of an external key due to missing public key" << std::endl;
+			}
 		}
 		if (valid_revsig)
 		{
 			if (verbose)
+			{
 				std::cerr << "WARNING: valid revocation signature found " <<
 					"for subkey" << std::endl;
+			}
 			valid = false;
 			revoked = true;
 			return false;
 		}
 		else if (verbose)
-			std::cerr << "WARNING: invalid revocation signature" <<
-				" found for subkey" << std::endl;
+		{
+			std::cerr << "WARNING: invalid revocation signature found " <<
+				"for subkey" << std::endl;
+		}
 	}
 	// last but not least, check whether there is a valid subkey binding
 	// signature and a valid primary key binding signature, if subkey is
@@ -2376,9 +3069,9 @@ bool TMCG_OpenPGP_Subkey::Check
 		if (verbose > 2)
 			pbindsigs[j]->PrintInfo();
 		if (!pbindsigs[j]->CheckValidity(primary->creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (!pbindsigs[j]->CheckValidity(creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (pbindsigs[j]->revoked)
 			continue; // ignore a revoked signature
 		// check the binding signature cryptographically
@@ -2392,14 +3085,17 @@ bool TMCG_OpenPGP_Subkey::Check
 			else
 			{
 				if (verbose)
+				{
 					std::cerr << "WARNING: pbinding signature verification " <<
 						"failed" << std::endl;
+				}
 			}
 		}
 		else if (verbose)
-			std::cerr << "WARNING: unknown pbinding signature " <<
-				"of type 0x" << std::hex <<
-				(int)pbindsigs[j]->type << std::dec << std::endl;
+		{
+			std::cerr << "WARNING: unknown pbinding signature of type 0x" <<
+				std::hex << (int)pbindsigs[j]->type << std::dec << std::endl;
+		}
 	}
 	bool signing_subkey = false;
 	size_t allflags = AccumulateFlags();
@@ -2419,6 +3115,11 @@ bool TMCG_OpenPGP_Subkey::Check
 			}
 			else
 			{
+				if (verbose)
+				{
+					std::cerr << "WARNING: no valid binding signature " <<
+						"(backsig) found for this signing subkey" << std::endl;
+				}
 				valid = false;
 				return false;
 			}
@@ -2431,6 +3132,11 @@ bool TMCG_OpenPGP_Subkey::Check
 	}
 	else
 	{
+		if (verbose)
+		{
+			std::cerr << "WARNING: no valid binding signature found for " <<
+				"this subkey" << std::endl;
+		}
 		valid = false;
 		return false;
 	}
@@ -2950,8 +3656,10 @@ bool TMCG_OpenPGP_PrivateSubkey::Weak
 		pbits = gcry_mpi_get_nbits(rsa_p);
 		qbits = gcry_mpi_get_nbits(rsa_q);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: RSA with |p| = " << pbits <<
 				" bits, |q| = " << qbits << " bits" << std::endl;
+		}
 		if ((pbits < 1024) || (qbits < 1024))
 			return true; // weak key
 		return pub->Weak(verbose);
@@ -2961,8 +3669,10 @@ bool TMCG_OpenPGP_PrivateSubkey::Weak
 		unsigned int xbits = 0;
 		xbits = gcry_mpi_get_nbits(elg_x);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: ElGamal with |x| = " <<
 				xbits << " bits" << std::endl;
+		}
 		if (xbits < 245)
 			return true; // weak key
 		return pub->Weak(verbose);
@@ -2972,8 +3682,10 @@ bool TMCG_OpenPGP_PrivateSubkey::Weak
 		unsigned int xbits = 0;
 		xbits = gcry_mpi_get_nbits(dsa_x);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: DSA with |x| = " <<
-				xbits << " bits" << std::endl; 
+				xbits << " bits" << std::endl;
+		}
 		if (xbits < 245)
 			return true; // weak key
 		return pub->Weak(verbose);
@@ -2985,10 +3697,12 @@ bool TMCG_OpenPGP_PrivateSubkey::Weak
 		xibits = gcry_mpi_get_nbits(telg_x_i);
 		xprimeibits = gcry_mpi_get_nbits(telg_xprime_i);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: tElG with |q| = " <<
 				qbits << " bits, |x_i| = " <<
 				xibits << " bits, |xprime_i| = " <<
-				xprimeibits << " bits" << std::endl; 
+				xprimeibits << " bits" << std::endl;
+		}
 		if ((qbits < 256) || (xibits < 245) || (xprimeibits < 245))
 			return true; // weak key
 		return pub->Weak(verbose);
@@ -3000,8 +3714,10 @@ bool TMCG_OpenPGP_PrivateSubkey::Weak
 		unsigned int skbits = 0;
 		skbits = gcry_mpi_get_nbits(ec_sk);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: ECC with |x| = " <<
 				skbits << " bits" << std::endl;
+		}
 		if (skbits < 250)
 			return true; // weak key
 		return pub->Weak(verbose);
@@ -3012,7 +3728,8 @@ bool TMCG_OpenPGP_PrivateSubkey::Weak
 }
 
 bool TMCG_OpenPGP_PrivateSubkey::Decrypt
-	(const TMCG_OpenPGP_PKESK* &esk, const int verbose,
+	(const TMCG_OpenPGP_PKESK* &esk,
+	 const int verbose,
 	 tmcg_openpgp_secure_octets_t &out) const
 {
 	if (!Good())
@@ -3026,15 +3743,19 @@ bool TMCG_OpenPGP_PrivateSubkey::Decrypt
 		((pub->AccumulateFlags() & 0x08) != 0x08))
 	{
 		if (verbose)
-			std::cerr << "ERROR: subkey is not capable of encryption" <<
+		{
+			std::cerr << "ERROR: subkey is not capable of encrypting" <<
 				std::endl;
+		}
 		return false;
 	}
 	if (esk->pkalgo != pub->pkalgo)
 	{
 		if (verbose)
-			std::cerr << "ERROR: PKESK pkalgo does not match public-key" <<
-				" algorithm of subkey" << std::endl;
+		{
+			std::cerr << "ERROR: PKESK pkalgo does not match public-key " <<
+				"algorithm of subkey" << std::endl;
+		}
 		return false;
 
 	}
@@ -3044,8 +3765,10 @@ bool TMCG_OpenPGP_PrivateSubkey::Decrypt
 		OctetsCompareZero(esk->keyid))
 	{
 		if (verbose)
-			std::cerr << "ERROR: PKESK keyid does not match subkey ID or" <<
-				" wildcard pattern" << std::endl;
+		{
+			std::cerr << "ERROR: PKESK keyid does not match subkey ID " <<
+				"or wildcard pattern" << std::endl;
+		}
 		return false;
 	}
 	if ((esk->pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
@@ -3056,8 +3779,7 @@ bool TMCG_OpenPGP_PrivateSubkey::Decrypt
 			(gcry_mpi_cmp(esk->me, pub->rsa_n) >= 0))
 		{
 			if (verbose)
-				std::cerr << "ERROR: 0 < m^e < n not satisfied" << 
-					std::endl;
+				std::cerr << "ERROR: 0 < m^e < n not satisfied" << std::endl;
 			return false;
 		}
 		gcry_error_t dret;
@@ -3066,8 +3788,10 @@ bool TMCG_OpenPGP_PrivateSubkey::Decrypt
 		if (dret)
 		{
 			if (verbose)
-				std::cerr << "ERROR: AsymmetricDecryptRSA() failed" <<
-					" with rc = " << gcry_err_code(dret) << std::endl;
+			{
+				std::cerr << "ERROR: AsymmetricDecryptRSA() failed " <<
+					"with rc = " << gcry_err_code(dret) << std::endl;
+			}
 			return false;
 		}
 		return true;
@@ -3079,8 +3803,7 @@ bool TMCG_OpenPGP_PrivateSubkey::Decrypt
 			(gcry_mpi_cmp(esk->gk, pub->elg_p) >= 0))
 		{
 			if (verbose)
-				std::cerr << "ERROR: 0 < g^k < p not satisfied" << 
-					std::endl;
+				std::cerr << "ERROR: 0 < g^k < p not satisfied" << std::endl;
 			return false;
 		}
 		// check whether $0 < my^k < p$.
@@ -3088,8 +3811,7 @@ bool TMCG_OpenPGP_PrivateSubkey::Decrypt
 			(gcry_mpi_cmp(esk->myk, pub->elg_p) >= 0))
 		{
 			if (verbose)
-				std::cerr << "ERROR: 0 < my^k < p not satisfied" <<
-					std::endl;
+				std::cerr << "ERROR: 0 < my^k < p not satisfied" << std::endl;
 			return false;
 		}
 		gcry_error_t dret;
@@ -3098,8 +3820,10 @@ bool TMCG_OpenPGP_PrivateSubkey::Decrypt
 		if (dret)
 		{
 			if (verbose)
-				std::cerr << "ERROR: AsymmetricDecryptElgamal() failed" <<
-					" with rc = " << gcry_err_code(dret) << std::endl;
+			{
+				std::cerr << "ERROR: AsymmetricDecryptElgamal() failed " <<
+					"with rc = " << gcry_err_code(dret) << std::endl;
+			}
 			return false;
 		}
 		return true;
@@ -3116,16 +3840,20 @@ bool TMCG_OpenPGP_PrivateSubkey::Decrypt
 			if (dret)
 			{
 				if (verbose)
-					std::cerr << "ERROR: gcry_mpi_ec_new() failed" <<
-						" with rc = " << gcry_err_code(dret) << std::endl;
+				{
+					std::cerr << "ERROR: gcry_mpi_ec_new() failed " <<
+						"with rc = " << gcry_err_code(dret) << std::endl;
+				}
 				return false;
 			}
 			dret = gcry_mpi_ec_set_mpi("q", esk->ecepk, ec);
 			if (dret)
 			{
 				if (verbose)
-					std::cerr << "ERROR: gcry_mpi_ec_set_mpi() failed" <<
-						" with rc = " << gcry_err_code(dret) << std::endl;
+				{
+					std::cerr << "ERROR: gcry_mpi_ec_set_mpi() failed " <<
+						"with rc = " << gcry_err_code(dret) << std::endl;
+				}
 				gcry_ctx_release(ec);
 				return false;
 			}
@@ -3133,8 +3861,10 @@ bool TMCG_OpenPGP_PrivateSubkey::Decrypt
 			if (tmp == NULL)
 			{
 				if (verbose)
+				{
 					std::cerr << "ERROR: gcry_mpi_ec_curve_point() failed" <<
 						std::endl;
+				}
 				gcry_ctx_release(ec);
 				return false;
 			}
@@ -3144,8 +3874,10 @@ bool TMCG_OpenPGP_PrivateSubkey::Decrypt
 			if (!ok)
 			{
 				if (verbose)
+				{
 					std::cerr << "ERROR: gcry_mpi_ec_curve_point() failed" <<
 						std::endl;
+				}
 				return false;
 			}
 		}
@@ -3157,8 +3889,10 @@ bool TMCG_OpenPGP_PrivateSubkey::Decrypt
 		if (dret)
 		{
 			if (verbose)
-				std::cerr << "ERROR: AsymmetricDecryptECDH() failed" <<
-					" with rc = " << gcry_err_code(dret) << std::endl;
+			{
+				std::cerr << "ERROR: AsymmetricDecryptECDH() failed " <<
+					"with rc = " << gcry_err_code(dret) << std::endl;
+			}
 			return false;
 		}
 		return true;
@@ -3166,10 +3900,103 @@ bool TMCG_OpenPGP_PrivateSubkey::Decrypt
 	else
 	{
 		if (verbose)
+		{
 			std::cerr << "ERROR: public-key algorithm " << (int)esk->pkalgo <<
 				" not supported for decryption" << std::endl;
+		}
 		return false;
 	}
+}
+
+bool TMCG_OpenPGP_PrivateSubkey::SignData
+	(const tmcg_openpgp_octets_t &hash,
+	 const tmcg_openpgp_hashalgo_t hashalgo,
+	 const tmcg_openpgp_octets_t &trailer,
+	 const tmcg_openpgp_octets_t &left,
+	 const int verbose,
+	 tmcg_openpgp_octets_t &out) const
+{
+	if (!Good())
+	{
+		if (verbose)
+			std::cerr << "ERROR: bad key material" << std::endl;
+		return false;
+	}
+	if (pub->AccumulateFlags() && ((pub->AccumulateFlags() & 0x02) != 0x02))
+	{
+		if (verbose)
+		{
+			std::cerr << "ERROR: subkey is not capable of signing data" <<
+				std::endl;
+		}
+		return false;
+	}
+	gcry_error_t ret;
+	gcry_mpi_t r = gcry_mpi_new(2048);
+	gcry_mpi_t s = gcry_mpi_new(2048);
+	switch (pkalgo)
+	{
+		case TMCG_OPENPGP_PKALGO_RSA:
+		case TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY:
+			ret = CallasDonnerhackeFinneyShawThayerRFC4880::
+				AsymmetricSignRSA(hash, private_key, hashalgo, s);
+			break;
+		case TMCG_OPENPGP_PKALGO_DSA:
+			ret = CallasDonnerhackeFinneyShawThayerRFC4880::
+				AsymmetricSignDSA(hash, private_key, r, s);
+			break;
+		case TMCG_OPENPGP_PKALGO_ECDSA:
+			ret = CallasDonnerhackeFinneyShawThayerRFC4880::
+				AsymmetricSignECDSA(hash, private_key, r, s);
+			break;
+		case TMCG_OPENPGP_PKALGO_EDDSA:
+			ret = CallasDonnerhackeFinneyShawThayerRFC4880::
+				AsymmetricSignEdDSA(hash, private_key, r, s);
+			break;
+		default:
+			if (verbose)
+			{
+				std::cerr << "ERROR: public-key algorithm " <<
+					(int)pkalgo << " not supported" << std::endl;
+				gcry_mpi_release(r), gcry_mpi_release(s);
+			}
+			return false;
+	}
+	if (ret)
+	{
+		if (verbose)
+		{
+			std::cerr << "ERROR: signing of hash value failed " <<
+				"(rc = " << gcry_err_code(ret) << ", str = " <<
+				gcry_strerror(ret) << ")" << std::endl;
+		}
+		gcry_mpi_release(r), gcry_mpi_release(s);
+		return false;
+	}
+	switch (pkalgo)
+	{
+		case TMCG_OPENPGP_PKALGO_RSA:
+		case TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY:
+			CallasDonnerhackeFinneyShawThayerRFC4880::
+				PacketSigEncode(trailer, left, s, out);
+			break;
+		case TMCG_OPENPGP_PKALGO_DSA:
+		case TMCG_OPENPGP_PKALGO_ECDSA:
+		case TMCG_OPENPGP_PKALGO_EDDSA:
+			CallasDonnerhackeFinneyShawThayerRFC4880::
+				PacketSigEncode(trailer, left, r, s, out);
+			break;
+		default:
+			if (verbose)
+			{
+				std::cerr << "ERROR: public-key algorithm " <<
+					(int)pkalgo << " not supported" << std::endl;
+			}
+			gcry_mpi_release(r), gcry_mpi_release(s);
+			return false;
+	}
+	gcry_mpi_release(r), gcry_mpi_release(s);
+	return true;	
 }
 
 TMCG_OpenPGP_PrivateSubkey::~TMCG_OpenPGP_PrivateSubkey
@@ -3216,6 +4043,7 @@ TMCG_OpenPGP_Pubkey::TMCG_OpenPGP_Pubkey
 		erroff(0),
 		valid(false),
 		revoked(false),
+		expired(false),
 		pkalgo(pkalgo_in),
 		creationtime(creationtime_in),
 		expirationtime(expirationtime_in),
@@ -3273,6 +4101,7 @@ TMCG_OpenPGP_Pubkey::TMCG_OpenPGP_Pubkey
 		erroff(0),
 		valid(false),
 		revoked(false),
+		expired(false),
 		pkalgo(pkalgo_in),
 		creationtime(creationtime_in),
 		expirationtime(expirationtime_in),
@@ -3331,6 +4160,7 @@ TMCG_OpenPGP_Pubkey::TMCG_OpenPGP_Pubkey
 		erroff(0),
 		valid(false),
 		revoked(false),
+		expired(false),
 		pkalgo(pkalgo_in),
 		creationtime(creationtime_in),
 		expirationtime(expirationtime_in),
@@ -3420,9 +4250,11 @@ bool TMCG_OpenPGP_Pubkey::Weak
 		nbits = gcry_mpi_get_nbits(rsa_n);
 		ebits = gcry_mpi_get_nbits(rsa_e);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: RSA with |n| = " <<
 				nbits << " bits, |e| = " <<
 				ebits << " bits" << std::endl;
+		}
 		if ((nbits < 2048) || (ebits < 6))
 			return true; // weak key
 		wret = gcry_prime_check(rsa_e, 0);
@@ -3437,11 +4269,13 @@ bool TMCG_OpenPGP_Pubkey::Weak
 		gbits = gcry_mpi_get_nbits(dsa_g);
 		ybits = gcry_mpi_get_nbits(dsa_y);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: DSA with |p| = " <<
 				pbits << " bits, |q| = " <<
 				qbits << " bits, |g| = " <<
 				gbits << " bits, |y| = " <<
 				ybits << " bits" <<	std::endl;
+		}
 		if ((pbits < 2048) || (qbits < 256) || (gbits < 2) || (ybits < 2))
 			return true; // weak key
 		wret = gcry_prime_check(dsa_p, 0);
@@ -3458,9 +4292,11 @@ bool TMCG_OpenPGP_Pubkey::Weak
 		if (curvename != NULL)
 		{
 			if (verbose > 1)
+			{
 				std::cerr << "INFO: ECDSA with curve \"" << curvename <<
 					"\" and " << curvebits << " bits" << std::endl;
-			if (curvebits < 256)
+			}
+			if (curvebits < 255)
 				return true; // weak key
 		}
 		else
@@ -3477,9 +4313,11 @@ bool TMCG_OpenPGP_Pubkey::Weak
 		if (curvename != NULL)
 		{
 			if (verbose > 1)
+			{
 				std::cerr << "INFO: EdDSA with curve \"" << curvename <<
 					"\" and " << curvebits << " bits" << std::endl;
-			if (curvebits < 256)
+			}
+			if (curvebits < 255)
 				return true; // weak key
 		}
 		else
@@ -3537,78 +4375,101 @@ void TMCG_OpenPGP_Pubkey::UpdateProperties
 	(const TMCG_OpenPGP_Signature *sig,
 	 const int verbose)
 {
-	expirationtime = sig->keyexpirationtime;
-	if (verbose > 1)
-		std::cerr << "INFO: primary key update expirationtime to " <<
-			expirationtime << std::endl;
-	if (verbose > 1)
-		std::cerr << "INFO: primary key update flags to " << std::hex;
-	flags.clear();			
-	for (size_t i = 0; i < sig->keyflags.size(); i++)
+	if (sig->keyexpirationtime > 0)
 	{
-		flags.push_back(sig->keyflags[i]);
+		expirationtime = sig->keyexpirationtime;
 		if (verbose > 1)
-			std::cerr << (int)sig->keyflags[i] << " ";
+		{
+			std::cerr << "INFO: primary key update expirationtime to " <<
+				expirationtime << std::endl;
+		}
 	}
-	if (verbose > 1)
-		std::cerr << std::dec << std::endl;
-	if (verbose > 1)
-		std::cerr << "INFO: primary key update features to " <<
-			std::hex;
-	features.clear();
-	for (size_t i = 0; i < sig->keyfeatures.size(); i++)
+	if (sig->keyflags.size() > 0)
 	{
-		features.push_back(sig->keyfeatures[i]);
 		if (verbose > 1)
-			std::cerr << (int)sig->keyfeatures[i] << " ";
+			std::cerr << "INFO: primary key update flags to " << std::hex;
+		flags.clear();			
+		for (size_t i = 0; i < sig->keyflags.size(); i++)
+		{
+			flags.push_back(sig->keyflags[i]);
+			if (verbose > 1)
+				std::cerr << (int)sig->keyflags[i] << " ";
+		}
+		if (verbose > 1)
+			std::cerr << std::dec << std::endl;
 	}
-	if (verbose > 1)
-		std::cerr << std::dec << std::endl;
-	if (verbose > 1)
-		std::cerr << "INFO: primary key update psa to ";
-	psa.clear();
-	for (size_t i = 0; i < sig->keyprefs_psa.size(); i++)
+	if (sig->keyfeatures.size() > 0)
 	{
-		psa.push_back(sig->keyprefs_psa[i]);
 		if (verbose > 1)
-			std::cerr << (int)sig->keyprefs_psa[i] << " ";
+			std::cerr << "INFO: primary key update features to " <<
+				std::hex;
+		features.clear();
+		for (size_t i = 0; i < sig->keyfeatures.size(); i++)
+		{
+			features.push_back(sig->keyfeatures[i]);
+			if (verbose > 1)
+				std::cerr << (int)sig->keyfeatures[i] << " ";
+		}
+		if (verbose > 1)
+			std::cerr << std::dec << std::endl;
 	}
-	if (verbose > 1)
-		std::cerr << std::endl;
-	if (verbose > 1)
-		std::cerr << "INFO: primary key update pha to ";
-	pha.clear();
-	for (size_t i = 0; i < sig->keyprefs_pha.size(); i++)
+	if (sig->keyprefs_psa.size() > 0)
 	{
-		pha.push_back(sig->keyprefs_pha[i]);
 		if (verbose > 1)
-			std::cerr << (int)sig->keyprefs_pha[i] << " ";
+			std::cerr << "INFO: primary key update psa to ";
+		psa.clear();
+		for (size_t i = 0; i < sig->keyprefs_psa.size(); i++)
+		{
+			psa.push_back(sig->keyprefs_psa[i]);
+			if (verbose > 1)
+				std::cerr << (int)sig->keyprefs_psa[i] << " ";
+		}
+		if (verbose > 1)
+			std::cerr << std::endl;
 	}
-	if (verbose > 1)
-		std::cerr << std::endl;
-	if (verbose > 1)
-		std::cerr << "INFO: primary key update pca to ";
-	pca.clear();
-	for (size_t i = 0; i < sig->keyprefs_pca.size(); i++)
+	if (sig->keyprefs_pha.size() > 0)
 	{
-		pca.push_back(sig->keyprefs_pca[i]);
 		if (verbose > 1)
-			std::cerr << (int)sig->keyprefs_pca[i] << " ";
+			std::cerr << "INFO: primary key update pha to ";
+		pha.clear();
+		for (size_t i = 0; i < sig->keyprefs_pha.size(); i++)
+		{
+			pha.push_back(sig->keyprefs_pha[i]);
+			if (verbose > 1)
+				std::cerr << (int)sig->keyprefs_pha[i] << " ";
+		}
+		if (verbose > 1)
+			std::cerr << std::endl;
 	}
-	if (verbose > 1)
-		std::cerr << std::endl;
-	if (verbose > 1)
-		std::cerr << "INFO: primary key update paa to ";
-	paa.clear();
-	for (size_t i = 0; i < sig->keyprefs_paa.size(); i++)
+	if (sig->keyprefs_pca.size() > 0)
 	{
-		paa.push_back(sig->keyprefs_paa[i]);
 		if (verbose > 1)
-			std::cerr << (int)sig->keyprefs_paa[i] << " ";
+			std::cerr << "INFO: primary key update pca to ";
+		pca.clear();
+		for (size_t i = 0; i < sig->keyprefs_pca.size(); i++)
+		{
+			pca.push_back(sig->keyprefs_pca[i]);
+			if (verbose > 1)
+				std::cerr << (int)sig->keyprefs_pca[i] << " ";
+		}
+		if (verbose > 1)
+			std::cerr << std::endl;
 	}
-	if (verbose > 1)
-		std::cerr << std::endl;
-	if (verbose > 1)
+	if (sig->keyprefs_paa.size() > 0)
+	{
+		if (verbose > 1)
+			std::cerr << "INFO: primary key update paa to ";
+		paa.clear();
+		for (size_t i = 0; i < sig->keyprefs_paa.size(); i++)
+		{
+			paa.push_back(sig->keyprefs_paa[i]);
+			if (verbose > 1)
+				std::cerr << (int)sig->keyprefs_paa[i] << " ";
+		}
+		if (verbose > 1)
+			std::cerr << std::endl;
+	}
+	if ((verbose > 1) && (sig->revkeys.size() > 0))
 		std::cerr << "INFO: primary key update revkeys with added ";
 	for (size_t i = 0; i < sig->revkeys.size(); i++)
 	{
@@ -3642,28 +4503,30 @@ void TMCG_OpenPGP_Pubkey::UpdateProperties
 			std::cerr << "[" << fpr_str << "]";
 		}
 	}
-	if (verbose > 1)
+	if ((verbose > 1) && (sig->revkeys.size() > 0))
 		std::cerr << std::endl;
 }
 
 bool TMCG_OpenPGP_Pubkey::CheckValidity
-	(const int verbose) const
+	(const int verbose)
 {
 	time_t current = time(NULL);
-	time_t fmax = 60 * 60 * 25; // deviation time: 25 hours
 	time_t kmax = creationtime + expirationtime;
 	if (expirationtime && (current > kmax))
 	{
 		if (verbose)
-			std::cerr << "WARNING: primary key has been " <<
-				"expired" << std::endl;
+			std::cerr << "WARNING: primary key has been expired" << std::endl;
+		expired = true;
 		return false;
 	}
+	time_t fmax = 60 * 60 * 25; // deviation time: 25 hours
 	if (creationtime > (current + fmax))
 	{
 		if (verbose)
+		{
 			std::cerr << "WARNING: primary key has been " <<
 				"created in far future" << std::endl;
+		}
 		return false;
 	}
 	return true;
@@ -3676,15 +4539,13 @@ bool TMCG_OpenPGP_Pubkey::CheckValidityPeriod
 	if (expirationtime && (at > kmax))
 	{
 		if (verbose)
-			std::cerr << "WARNING: not in validity period of primary key" <<
-				std::endl;
+			std::cerr << "WARNING: out of validity (primary key)" << std::endl;
 		return false;
 	}
 	if (creationtime > at)
 	{
 		if (verbose)
-			std::cerr << "WARNING: not in validity period of primary key" <<
-				std::endl;
+			std::cerr << "WARNING: out of validity (primary key)" << std::endl;
 		return false;
 	}
 	return true;
@@ -3714,15 +4575,19 @@ bool TMCG_OpenPGP_Pubkey::CheckExternalRevocation
 			fprlen = 20; // V4 key
 		}
 		else
+		{
 			fprlen = 32; // V5 key
+		}
 		tmcg_openpgp_octets_t fpr(revkeys[k].key_fingerprint,
 			revkeys[k].key_fingerprint+fprlen);
 		std::string fprstr;
 		CallasDonnerhackeFinneyShawThayerRFC4880::
 			FingerprintConvertPlain(fpr, fprstr);
 		if (verbose > 2)
-			std::cerr << "INFO: looking for external revocation" <<
-				" key with fingerprint " << fprstr << std::endl;
+		{
+			std::cerr << "INFO: looking for external revocation key " <<
+				"with fingerprint " << fprstr << std::endl;
+		}
 		TMCG_OpenPGP_Pubkey *revkey = ring->Find(fprstr);
 		if (revkey != NULL)
 		{
@@ -3734,8 +4599,10 @@ bool TMCG_OpenPGP_Pubkey::CheckExternalRevocation
 			if (!revkey->valid)
 			{
 				if (verbose)
+				{
 					std::cerr << "WARNING: revocation key is not valid" <<
 						std::endl;
+				}
 				continue;
 			}
 			if (sig->Verify(revkey->key, pub_hashing, verbose))
@@ -3755,7 +4622,7 @@ bool TMCG_OpenPGP_Pubkey::CheckSelfSignatures
 			std::cerr << "ERROR: bad key material" << std::endl;
 		return false;
 	}
-	// print statistics of primary key
+	// print statistics of this primary key
 	if (verbose > 1)
 	{
 		std::cerr << "INFO: key ID of primary key: " << std::hex;
@@ -3788,41 +4655,47 @@ bool TMCG_OpenPGP_Pubkey::CheckSelfSignatures
 		if (verbose > 2)
 			certrevsigs[j]->PrintInfo();
 		if (!certrevsigs[j]->CheckValidity(creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (certrevsigs[j]->revoked)
 			continue; // ignore a revoked signature
 		// check the revocation signature cryptographically
-		bool valid_revsig = false;
+		bool v_revsig = false;
 		if (CallasDonnerhackeFinneyShawThayerRFC4880::
 			OctetsCompare(id, certrevsigs[j]->issuer))
 		{
 			if (certrevsigs[j]->Verify(key, pub_hashing, verbose))
-				valid_revsig = true;
+				v_revsig = true;
 			else if (verbose)
-				std::cerr << "ERROR: signature verification failed" <<
-					std::endl;
+			{
+				std::cerr << "WARNING: cryptographic verification of a " <<
+					"revocation signature failed" << std::endl;
+			}
 		}
 		else if (external)
 		{
-				valid_revsig = CheckExternalRevocation(certrevsigs[j], ring,
-					verbose);
-				if (!valid_revsig && verbose)
-					std::cerr << "WARNING: cannot verify revocation " <<
-						"signature of an external key due to missing " <<
-						"public key" << std::endl;
+			v_revsig = CheckExternalRevocation(certrevsigs[j], ring, verbose);
+			if (!v_revsig && verbose)
+			{
+				std::cerr << "WARNING: cannot verify revocation signature " <<
+					"of an external key due to missing public key" << std::endl;
+			}
 		}
 		else
 		{
 			if (verbose)
+			{
 				std::cerr << "WARNING: check of external revocation disabled" <<
 					std::endl;
-			valid_revsig = false;
+			}
+			v_revsig = false;
 		}
-		if (valid_revsig)
+		if (v_revsig)
 		{
 			if (verbose)
+			{
 				std::cerr << "WARNING: valid certification revocation " <<
 					"signature found for primary key" << std::endl;
+			}
 			// TODO: check certrevsig.creationtime > selfsig.creation time
 			// TODO: mark ONLY corresponding 0x1f sig from selfsigs as revoked
 			// TODO: evaluate signature target subpacket, if available
@@ -3834,24 +4707,27 @@ bool TMCG_OpenPGP_Pubkey::CheckSelfSignatures
 			}
 		}
 		else if (verbose)
+		{
 			std::cerr << "WARNING: invalid certification revocation " <<
 				"signature found for subkey" << std::endl;
+		}
 	}
-	// check whether some self-signatures (0x1f) on primary key are valid
-	std::sort(selfsigs.begin(), selfsigs.end(),
-		TMCG_OpenPGP_Signature_Compare);
+	// check whether some self-signatures (0x1f) on this primary key are valid
+	bool one_valid_1f = false;
+	std::sort(selfsigs.begin(), selfsigs.end(), TMCG_OpenPGP_Signature_Compare);
 	for (size_t j = 0; j < selfsigs.size(); j++)
 	{
 		// print and check basic properties of the signature
 		if (verbose > 2)
 			selfsigs[j]->PrintInfo();
 		if (!selfsigs[j]->CheckValidity(creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (selfsigs[j]->revoked)
 			continue; // ignore a revoked signature
 		// check the self-signature cryptographically
 		if (selfsigs[j]->Verify(key, pub_hashing, verbose))
 		{
+			one_valid_1f = true;
 			// update properties of primary key
 			UpdateProperties(selfsigs[j], verbose);
 		}
@@ -3878,6 +4754,8 @@ bool TMCG_OpenPGP_Pubkey::CheckSelfSignatures
 				userids[i]->revsigs.size() << std::endl;
 			std::cerr << "INFO: number of certsigs = " <<
 				userids[i]->certsigs.size() << std::endl;
+			std::cerr << "INFO: number of attestsigs = " <<
+				userids[i]->attestsigs.size() << std::endl;
 		}
 		if (userids[i]->Check(this, verbose))
 		{
@@ -3892,8 +4770,10 @@ bool TMCG_OpenPGP_Pubkey::CheckSelfSignatures
 					UpdateProperties(userids[i]->selfsigs[j], verbose);
 				}
 				else if (verbose > 1)
+				{
 					std::cerr << "WARNING: one self-signature on this " <<
 						"user ID is NOT valid" << std::endl;
+				}
 			}
 		}
 		else if (verbose > 1)
@@ -3906,6 +4786,7 @@ bool TMCG_OpenPGP_Pubkey::CheckSelfSignatures
 		}
 	}
 	// check user attributes of primary key
+	bool one_valid_uat = false;
 	for (size_t i = 0; i < userattributes.size(); i++)
 	{
 		if (verbose > 1)
@@ -3919,9 +4800,12 @@ bool TMCG_OpenPGP_Pubkey::CheckSelfSignatures
 				userattributes[i]->revsigs.size() << std::endl;
 			std::cerr << "INFO: number of certsigs = " <<
 				userattributes[i]->certsigs.size() << std::endl;
+			std::cerr << "INFO: number of attestsigs = " <<
+				userattributes[i]->attestsigs.size() << std::endl;
 		}
 		if (userattributes[i]->Check(this, verbose))
 		{
+			one_valid_uat = true;
 			if (verbose > 1)
 				std::cerr << "INFO: user attribute is valid" << std::endl;
 			for (size_t j = 0; j < userattributes[i]->selfsigs.size(); j++)
@@ -3932,8 +4816,10 @@ bool TMCG_OpenPGP_Pubkey::CheckSelfSignatures
 					UpdateProperties(userattributes[i]->selfsigs[j], verbose);
 				}
 				else if (verbose > 1)
+				{
 					std::cerr << "WARNING: one self-signature on this " <<
 						"user attribute is NOT valid" << std::endl;
+				}
 			}
 		}
 		else if (verbose > 1)
@@ -3987,51 +4873,59 @@ bool TMCG_OpenPGP_Pubkey::CheckSelfSignatures
 		if (verbose > 2)
 			keyrevsigs[j]->PrintInfo();
 		if (!keyrevsigs[j]->CheckValidity(creationtime, verbose))
-			continue; // ignore an expired signature
+			continue; // ignore an expired or insecure signature
 		if (keyrevsigs[j]->revoked)
 			continue; // ignore a revoked signature
 		// check the revocation signature cryptographically
-		bool valid_revsig = false;
+		bool v_revsig = false;
 		if (CallasDonnerhackeFinneyShawThayerRFC4880::
 			OctetsCompare(id, keyrevsigs[j]->issuer))
 		{
 			if (keyrevsigs[j]->Verify(key, pub_hashing, verbose))
-				valid_revsig = true;
+				v_revsig = true;
 			else if (verbose)
-				std::cerr << "ERROR: signature verification failed" <<
-					std::endl;
+			{
+				std::cerr << "WARNING: cryptographic verification of a " <<
+					"revocation signature failed" << std::endl;
+			}
 		}
 		else if (external)
 		{
-				valid_revsig = CheckExternalRevocation(keyrevsigs[j], ring,
-					verbose);
-				if (!valid_revsig && verbose)
-					std::cerr << "WARNING: cannot verify revocation " <<
-						"signature of an external key due to missing " <<
-						"public key" << std::endl;
+			v_revsig = CheckExternalRevocation(keyrevsigs[j], ring, verbose);
+			if (!v_revsig && verbose)
+			{
+				std::cerr << "WARNING: cannot verify revocation signature " <<
+					"of an external key due to missing public key" << std::endl;
+			}
 		}
 		else
 		{
 			if (verbose)
+			{
 				std::cerr << "WARNING: check of external revocation disabled" <<
 					std::endl;
-			valid_revsig = false;
+			}
+			v_revsig = false;
 		}
-		if (valid_revsig)
+		if (v_revsig)
 		{
 			if (verbose)
+			{
 				std::cerr << "WARNING: valid revocation signature found " <<
 					"for primary key" << std::endl;
+			}
 			valid = false;
 			revoked = true;
 			return false;
 		}
 		else if (verbose)
-			std::cerr << "WARNING: invalid revocation " <<
-				"signature found for subkey" << std::endl;
+		{
+			std::cerr << "WARNING: invalid revocation signature found "
+				"for primary key" << std::endl;
+		}
 	}
 	// update validity state of this key and return the result
-	if (one_valid_uid)
+	if (one_valid_uid || one_valid_uat || one_valid_1f)
 	{
 		valid = true;
 		return true;
@@ -4127,8 +5021,21 @@ void TMCG_OpenPGP_Pubkey::Reduce
 }
 
 void TMCG_OpenPGP_Pubkey::Export
-	(tmcg_openpgp_octets_t &out) const
+	(tmcg_openpgp_octets_t &out,
+	 const tmcg_openpgp_export_flags_t flags) const
 {
+	bool keysonly = ((flags & TMCG_OPENPGP_EXPORT_KEYSONLY)
+			== TMCG_OPENPGP_EXPORT_KEYSONLY);
+	bool minimal = ((flags & TMCG_OPENPGP_EXPORT_MINIMAL)
+			== TMCG_OPENPGP_EXPORT_MINIMAL);
+	bool revcert = ((flags & TMCG_OPENPGP_EXPORT_REVCERT)
+			== TMCG_OPENPGP_EXPORT_REVCERT);
+	bool attested = ((flags & TMCG_OPENPGP_EXPORT_ATTESTED)
+			== TMCG_OPENPGP_EXPORT_ATTESTED);
+	if (minimal && !valid)
+		return; // skip invalid primary key
+	if (minimal && revoked)
+		return; // skip revoked primary key
 	out.insert(out.end(),
 		packet.begin(),
 		packet.end());
@@ -4152,6 +5059,12 @@ void TMCG_OpenPGP_Pubkey::Export
 	}
 	for (size_t j = 0; j < userids.size(); j++)
 	{
+		if (keysonly)
+			continue;
+		if (minimal && !userids[j]->valid)
+			continue; // skip invalid user ID
+		if (minimal && userids[j]->revoked)
+			continue; // skip revoked user ID
 		out.insert(out.end(),
 			(userids[j]->packet).begin(),
 			(userids[j]->packet).end());
@@ -4169,15 +5082,35 @@ void TMCG_OpenPGP_Pubkey::Export
 		}
 		for (size_t i = 0; i < (userids[j]->certsigs).size(); i++)
 		{
+			if (minimal || revcert)
+				continue;
 			if (userids[j]->certsigs[i]->exportable == false)
+				continue;
+			if (attested && !userids[j]->certsigs[i]->attested)
 				continue;
 			out.insert(out.end(),
 				(userids[j]->certsigs[i]->packet).begin(),
 				(userids[j]->certsigs[i]->packet).end());
 		}
+		for (size_t i = 0; i < (userids[j]->attestsigs).size(); i++)
+		{
+			if (minimal || revcert)
+				continue;
+			if (userids[j]->attestsigs[i]->exportable == false)
+				continue;
+			out.insert(out.end(),
+				(userids[j]->attestsigs[i]->packet).begin(),
+				(userids[j]->attestsigs[i]->packet).end());
+		}
 	}
 	for (size_t j = 0; j < userattributes.size(); j++)
 	{
+		if (keysonly)
+			continue;
+		if (minimal && !userattributes[j]->valid)
+			continue; // skip invalid user attribute
+		if (minimal && userattributes[j]->revoked)
+			continue; // skip revoked user attribute
 		out.insert(out.end(),
 			(userattributes[j]->packet).begin(),
 			(userattributes[j]->packet).end());
@@ -4195,15 +5128,33 @@ void TMCG_OpenPGP_Pubkey::Export
 		}
 		for (size_t i = 0; i < (userattributes[j]->certsigs).size(); i++)
 		{
+			if (minimal || revcert)
+				continue;
 			if (userattributes[j]->certsigs[i]->exportable == false)
+				continue;
+			if (attested && !userattributes[j]->certsigs[i]->attested)
 				continue;
 			out.insert(out.end(),
 				(userattributes[j]->certsigs[i]->packet).begin(),
 				(userattributes[j]->certsigs[i]->packet).end());
 		}
+		for (size_t i = 0; i < (userattributes[j]->attestsigs).size(); i++)
+		{
+			if (minimal || revcert)
+				continue;
+			if (userattributes[j]->attestsigs[i]->exportable == false)
+				continue;
+			out.insert(out.end(),
+				(userattributes[j]->attestsigs[i]->packet).begin(),
+				(userattributes[j]->attestsigs[i]->packet).end());
+		}
 	}
 	for (size_t j = 0; j < subkeys.size(); j++)
 	{
+		if (minimal && !subkeys[j]->valid)
+			continue; // skip invalid subkey
+		if (minimal && subkeys[j]->revoked)
+			continue; // skip revoked subkey
 		out.insert(out.end(),
 			(subkeys[j]->packet).begin(),
 			(subkeys[j]->packet).end());
@@ -4602,8 +5553,10 @@ bool TMCG_OpenPGP_Prvkey::Weak
 		pbits = gcry_mpi_get_nbits(rsa_p);
 		qbits = gcry_mpi_get_nbits(rsa_q);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: RSA with |p| = " << pbits <<
 				" bits, |q| = " << qbits << " bits" << std::endl;
+		}
 		if ((pbits < 1024) || (qbits < 1024))
 			return true; // weak key
 		return pub->Weak(verbose);
@@ -4613,8 +5566,10 @@ bool TMCG_OpenPGP_Prvkey::Weak
 		unsigned int xbits = 0;
 		xbits = gcry_mpi_get_nbits(dsa_x);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: DSA with |x| = " <<
-				xbits << " bits" << std::endl; 
+				xbits << " bits" << std::endl;
+		}
 		if (xbits < 245)
 			return true; // weak key
 		return pub->Weak(verbose);
@@ -4625,9 +5580,11 @@ bool TMCG_OpenPGP_Prvkey::Weak
 		xibits = gcry_mpi_get_nbits(tdss_x_i);
 		xprimeibits = gcry_mpi_get_nbits(tdss_xprime_i);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: tDSS/DSA with |x_i| = " <<
 				xibits << " bits, |xprime_i| = " <<
-				xprimeibits << " bits" << std::endl; 
+				xprimeibits << " bits" << std::endl;
+		}
 		if ((xibits < 245) || (xprimeibits < 245))
 			return true; // weak key
 		return pub->Weak(verbose);
@@ -4637,8 +5594,10 @@ bool TMCG_OpenPGP_Prvkey::Weak
 		unsigned int skbits = 0;
 		skbits = gcry_mpi_get_nbits(ec_sk);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: ECDSA with |x| = " <<
 				skbits << " bits" << std::endl;
+		}
 		if (skbits < 250)
 			return true; // weak key
 		return pub->Weak(verbose);
@@ -4648,8 +5607,10 @@ bool TMCG_OpenPGP_Prvkey::Weak
 		unsigned int skbits = 0;
 		skbits = gcry_mpi_get_nbits(ec_sk);
 		if (verbose > 1)
+		{
 			std::cerr << "INFO: EdDSA with |x| = " <<
 				skbits << " bits" << std::endl;
+		}
 		if (skbits < 250)
 			return true; // weak key
 		return pub->Weak(verbose);
@@ -4660,7 +5621,8 @@ bool TMCG_OpenPGP_Prvkey::Weak
 }
 
 bool TMCG_OpenPGP_Prvkey::Decrypt
-	(const TMCG_OpenPGP_PKESK* &esk, const int verbose,
+	(const TMCG_OpenPGP_PKESK* &esk,
+	 const int verbose,
 	 tmcg_openpgp_secure_octets_t &out) const
 {
 	if (!Good())
@@ -4682,8 +5644,10 @@ bool TMCG_OpenPGP_Prvkey::Decrypt
 				(gcry_mpi_cmp(esk->me, pub->rsa_n) >= 0))
 			{
 				if (verbose)
-					std::cerr << "ERROR: 0 < m^e < n not satisfied" << 
+				{
+					std::cerr << "ERROR: 0 < m^e < n not satisfied" <<
 						std::endl;
+				}
 				return false;
 			}
 			gcry_error_t dret;
@@ -4692,8 +5656,10 @@ bool TMCG_OpenPGP_Prvkey::Decrypt
 			if (dret)
 			{
 				if (verbose)
-					std::cerr << "ERROR: AsymmetricDecryptRSA() failed" <<
-						" with rc = " << gcry_err_code(ret) << std::endl;
+				{
+					std::cerr << "ERROR: AsymmetricDecryptRSA() failed " <<
+						"with rc = " << gcry_err_code(ret) << std::endl;
+				}
 				return false;
 			}
 			return true;
@@ -4701,18 +5667,113 @@ bool TMCG_OpenPGP_Prvkey::Decrypt
 		else
 		{
 			if (verbose)
+			{
 				std::cerr << "ERROR: public-key algorithm not supported" <<
 					" for decryption" << std::endl;
+			}
 			return false;
 		}
 	}
 	else
 	{
 		if (verbose)
-			std::cerr << "ERROR: PKESK keyid does not match key ID or" <<
-				" wildcard pattern" << std::endl;
+		{
+			std::cerr << "ERROR: PKESK keyid does not match key ID " <<
+				"or wildcard pattern" << std::endl;
+		}
 		return false;
 	}
+}
+
+bool TMCG_OpenPGP_Prvkey::SignData
+	(const tmcg_openpgp_octets_t &hash,
+	 const tmcg_openpgp_hashalgo_t hashalgo,
+	 const tmcg_openpgp_octets_t &trailer,
+	 const tmcg_openpgp_octets_t &left,
+	 const int verbose,
+	 tmcg_openpgp_octets_t &out) const
+{
+	if (!Good())
+	{
+		if (verbose)
+			std::cerr << "ERROR: bad key material" << std::endl;
+		return false;
+	}
+	if (pub->AccumulateFlags() && ((pub->AccumulateFlags() & 0x02) != 0x02))
+	{
+		if (verbose)
+		{
+			std::cerr << "ERROR: subkey is not capable of signing data" <<
+				std::endl;
+		}
+		return false;
+	}
+	gcry_error_t ret;
+	gcry_mpi_t r = gcry_mpi_new(2048);
+	gcry_mpi_t s = gcry_mpi_new(2048);
+	switch (pkalgo)
+	{
+		case TMCG_OPENPGP_PKALGO_RSA:
+		case TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY:
+			ret = CallasDonnerhackeFinneyShawThayerRFC4880::
+				AsymmetricSignRSA(hash, private_key, hashalgo, s);
+			break;
+		case TMCG_OPENPGP_PKALGO_DSA:
+			ret = CallasDonnerhackeFinneyShawThayerRFC4880::
+				AsymmetricSignDSA(hash, private_key, r, s);
+			break;
+		case TMCG_OPENPGP_PKALGO_ECDSA:
+			ret = CallasDonnerhackeFinneyShawThayerRFC4880::
+				AsymmetricSignECDSA(hash, private_key, r, s);
+			break;
+		case TMCG_OPENPGP_PKALGO_EDDSA:
+			ret = CallasDonnerhackeFinneyShawThayerRFC4880::
+				AsymmetricSignEdDSA(hash, private_key, r, s);
+			break;
+		default:
+			if (verbose)
+			{
+				std::cerr << "ERROR: public-key algorithm " <<
+					(int)pkalgo << " not supported" << std::endl;
+				gcry_mpi_release(r), gcry_mpi_release(s);
+			}
+			return false;
+	}
+	if (ret)
+	{
+		if (verbose)
+		{
+			std::cerr << "ERROR: signing of hash value failed " <<
+				"(rc = " << gcry_err_code(ret) << ", str = " <<
+				gcry_strerror(ret) << ")" << std::endl;
+		}
+		gcry_mpi_release(r), gcry_mpi_release(s);
+		return false;
+	}
+	switch (pkalgo)
+	{
+		case TMCG_OPENPGP_PKALGO_RSA:
+		case TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY:
+			CallasDonnerhackeFinneyShawThayerRFC4880::
+				PacketSigEncode(trailer, left, s, out);
+			break;
+		case TMCG_OPENPGP_PKALGO_DSA:
+		case TMCG_OPENPGP_PKALGO_ECDSA:
+		case TMCG_OPENPGP_PKALGO_EDDSA:
+			CallasDonnerhackeFinneyShawThayerRFC4880::
+				PacketSigEncode(trailer, left, r, s, out);
+			break;
+		default:
+			if (verbose)
+			{
+				std::cerr << "ERROR: public-key algorithm " <<
+					(int)pkalgo << " not supported" << std::endl;
+			}
+			gcry_mpi_release(r), gcry_mpi_release(s);
+			return false;
+	}
+	gcry_mpi_release(r), gcry_mpi_release(s);
+	return true;	
 }
 
 void TMCG_OpenPGP_Prvkey::RelinkPublicSubkeys
@@ -4757,8 +5818,10 @@ bool TMCG_OpenPGP_Prvkey::tDSS_CreateMapping
 				tdss_idx2dkg[i] = j;
 				tdss_dkg2idx[j] = i;
 				if (verbose > 1)
+				{
 					std::cerr << "INFO: mapping " << i << " -> " <<
-						"P_" << j << std::endl; 
+						"P_" << j << std::endl;
+				}
 				break;
 			}
 		}
@@ -4767,8 +5830,10 @@ bool TMCG_OpenPGP_Prvkey::tDSS_CreateMapping
 			tdss_idx2dkg.clear();
 			tdss_dkg2idx.clear();
 			if (verbose)
-				std::cerr << "ERROR: peer \"" << peers[i] << "\" not" <<
-					" found inside CAPL from tDSS/DSA key" << std::endl;
+			{
+				std::cerr << "ERROR: peer \"" << peers[i] << "\" not " <<
+					"found inside CAPL from tDSS/DSA key" << std::endl;
+			}
 			return false;
 		}
 	}
@@ -4776,8 +5841,17 @@ bool TMCG_OpenPGP_Prvkey::tDSS_CreateMapping
 }
 
 void TMCG_OpenPGP_Prvkey::Export
-	(tmcg_openpgp_octets_t &out) const
+	(tmcg_openpgp_octets_t &out,
+	 const tmcg_openpgp_export_flags_t flags) const
 {
+	bool keysonly = ((flags & TMCG_OPENPGP_EXPORT_KEYSONLY)
+		== TMCG_OPENPGP_EXPORT_KEYSONLY);
+	bool minimal = ((flags & TMCG_OPENPGP_EXPORT_MINIMAL)
+		== TMCG_OPENPGP_EXPORT_MINIMAL);
+	bool revcert = ((flags & TMCG_OPENPGP_EXPORT_REVCERT)
+		== TMCG_OPENPGP_EXPORT_REVCERT);
+	bool attested = ((flags & TMCG_OPENPGP_EXPORT_ATTESTED)
+		== TMCG_OPENPGP_EXPORT_ATTESTED);
 	out.insert(out.end(),
 		packet.begin(),
 		packet.end());
@@ -4801,6 +5875,12 @@ void TMCG_OpenPGP_Prvkey::Export
 	}
 	for (size_t j = 0; j < pub->userids.size(); j++)
 	{
+		if (keysonly)
+			continue;
+		if (minimal && !pub->userids[j]->valid)
+			continue; // skip invalid user ID
+		if (minimal && pub->userids[j]->revoked)
+			continue; // skip revoked user ID
 		out.insert(out.end(),
 			(pub->userids[j]->packet).begin(),
 			(pub->userids[j]->packet).end());
@@ -4818,13 +5898,35 @@ void TMCG_OpenPGP_Prvkey::Export
 		}
 		for (size_t i = 0; i < (pub->userids[j]->certsigs).size(); i++)
 		{
+			if (minimal || revcert)
+				continue;
+			if (pub->userids[j]->certsigs[i]->exportable == false)
+				continue;
+			if (attested && !pub->userids[j]->certsigs[i]->attested)
+				continue;
 			out.insert(out.end(),
 				(pub->userids[j]->certsigs[i]->packet).begin(),
 				(pub->userids[j]->certsigs[i]->packet).end());
 		}
+		for (size_t i = 0; i < (pub->userids[j]->attestsigs).size(); i++)
+		{
+			if (minimal || revcert)
+				continue;
+			if (pub->userids[j]->attestsigs[i]->exportable == false)
+				continue;
+			out.insert(out.end(),
+				(pub->userids[j]->attestsigs[i]->packet).begin(),
+				(pub->userids[j]->attestsigs[i]->packet).end());
+		}
 	}
 	for (size_t j = 0; j < pub->userattributes.size(); j++)
 	{
+		if (keysonly)
+			continue;
+		if (minimal && !pub->userattributes[j]->valid)
+			continue; // skip invalid user attribute
+		if (minimal && pub->userattributes[j]->revoked)
+			continue; // skip revoked user attribute
 		out.insert(out.end(),
 			(pub->userattributes[j]->packet).begin(),
 			(pub->userattributes[j]->packet).end());
@@ -4842,10 +5944,27 @@ void TMCG_OpenPGP_Prvkey::Export
 		}
 		for (size_t i = 0; i < (pub->userattributes[j]->certsigs).size(); i++)
 		{
+			if (minimal || revcert)
+				continue;
+			if (pub->userattributes[j]->certsigs[i]->exportable == false)
+				continue;
+			if (attested && !pub->userattributes[j]->certsigs[i]->attested)
+				continue;
 			out.insert(out.end(),
 				(pub->userattributes[j]->certsigs[i]->packet).begin(),
 				(pub->userattributes[j]->certsigs[i]->packet).end());
 		}
+		for (size_t i = 0; i < (pub->userattributes[j]->attestsigs).size(); i++)
+		{
+			if (minimal || revcert)
+				continue;
+			if (pub->userattributes[j]->attestsigs[i]->exportable == false)
+				continue;
+			out.insert(out.end(),
+				(pub->userattributes[j]->attestsigs[i]->packet).begin(),
+				(pub->userattributes[j]->attestsigs[i]->packet).end());
+		}
+
 	}
 	for (size_t j = 0; j < private_subkeys.size(); j++)
 	{
@@ -4933,25 +6052,19 @@ bool TMCG_OpenPGP_Keyring::Add
 		FingerprintConvertPlain(key->fingerprint, fpr_str);
 	if (keys.count(fpr_str))
 		return false; // key is already there
-	keys[fpr_str] = key;
 	// register several key IDs of primary key and subkeys
 	std::string kid_str;
 	CallasDonnerhackeFinneyShawThayerRFC4880::
 		KeyidConvert(key->id, kid_str);
-	if (!keys_by_keyid.count(kid_str))
-	{
-		keys_by_keyid[kid_str] = key;
-		keys_by_keyid["0x"+kid_str] = key;
-	}
-	else
+	if (keys_by_keyid.count(kid_str))
 		return false; // dup key ID
-	if (!keys_by_keyid.count(fpr_str))
-	{
-		keys_by_keyid[fpr_str] = key;
-		keys_by_keyid["0x"+fpr_str] = key;
-	}
-	else
+	if (keys_by_keyid.count(fpr_str))
 		return false; // dup key ID (full fingerprint)
+	keys[fpr_str] = key;
+	keys_by_keyid[kid_str] = key;
+	keys_by_keyid["0x"+kid_str] = key;
+	keys_by_keyid[fpr_str] = key;
+	keys_by_keyid["0x"+fpr_str] = key;
 	for (size_t i = 0; i < (key->subkeys).size(); i++)
 	{
 		CallasDonnerhackeFinneyShawThayerRFC4880::
@@ -4963,15 +6076,11 @@ bool TMCG_OpenPGP_Keyring::Add
 			keys_by_keyid[kid_str] = key;
 			keys_by_keyid["0x"+kid_str] = key;
 		}
-		else
-			return false; // dup key ID
 		if (!keys_by_keyid.count(fpr_str))
 		{
 			keys_by_keyid[fpr_str] = key;
 			keys_by_keyid["0x"+fpr_str] = key;
 		}
-		else
-			return false; // dup key ID (full fingerprint)
 	}	
 	return true;
 }
@@ -4979,10 +6088,16 @@ bool TMCG_OpenPGP_Keyring::Add
 TMCG_OpenPGP_Pubkey* TMCG_OpenPGP_Keyring::Find
 	(const std::string &fingerprint) const
 {
-	if (keys.count(fingerprint))
+	// convert lower-case letters to upper-case
+	std::string fpr;
+	fpr.resize(fingerprint.size());
+	std::transform(fingerprint.begin(), fingerprint.end(), fpr.begin(),
+		UpperCase);
+	// key lookup
+	if (keys.count(fpr))
 	{
 		std::map<std::string, TMCG_OpenPGP_Pubkey*>::const_iterator
-			it = keys.find(fingerprint);
+			it = keys.find(fpr);
 		return it->second;
 	}
 	else
@@ -4992,10 +6107,15 @@ TMCG_OpenPGP_Pubkey* TMCG_OpenPGP_Keyring::Find
 TMCG_OpenPGP_Pubkey* TMCG_OpenPGP_Keyring::FindByKeyid
 	(const std::string &keyid) const
 {
-	if (keys_by_keyid.count(keyid))
+	// convert lower-case letters to upper-case
+	std::string kid;
+	kid.resize(keyid.size());
+	std::transform(keyid.begin(), keyid.end(), kid.begin(), UpperCase);
+	// key lookup
+	if (keys_by_keyid.count(kid))
 	{
 		std::map<std::string, TMCG_OpenPGP_Pubkey*>::const_iterator
-			it = keys_by_keyid.find(keyid);
+			it = keys_by_keyid.find(kid);
 		return it->second;
 	}
 	else
@@ -5041,9 +6161,11 @@ size_t TMCG_OpenPGP_Keyring::List
 			selected++;
 			std::cout << "pub:";
 			if (pub->valid)
-				std::cout << "f:";
+				std::cout << "f:"; // TODO: calculate trust metric
 			else if (pub->revoked)
 				std::cout << "r:";
+			else if (pub->expired)
+				std::cout << "e:";
 			else
 				std::cout << "i:";
 			switch (pub->pkalgo)
@@ -5152,7 +6274,10 @@ size_t TMCG_OpenPGP_Keyring::List
 					std::cout << "i:";
 				std::cout << ":::";
 				if (uid->selfsigs.size())
-					std::cout << (long int)uid->selfsigs[0]->creationtime << ":";
+				{
+					std::cout << (long int)uid->selfsigs[0]->creationtime <<
+						":";
+				}
 				else
 					std::cout << ":";
 				std::cout << ":";
@@ -5194,7 +6319,10 @@ size_t TMCG_OpenPGP_Keyring::List
 					std::cout << "i:";
 				std::cout << ":::";
 				if (uat->selfsigs.size())
-					std::cout << (long int)uat->selfsigs[0]->creationtime << ":";
+				{
+					std::cout << (long int)uat->selfsigs[0]->creationtime <<
+						":";
+				}
 				else
 					std::cout << ":";
 				// TODO: implement other fields
@@ -5212,6 +6340,8 @@ size_t TMCG_OpenPGP_Keyring::List
 					std::cout << "f:";
 				else if (pub->subkeys[i]->revoked)
 					std::cout << "r:";
+				else if (pub->subkeys[i]->expired)
+					std::cout << "e:";
 				else
 					std::cout << "i:";
 				switch (sub->pkalgo)
@@ -5546,11 +6676,31 @@ bool TMCG_OpenPGP_Message::CheckMDC
 	if (!CallasDonnerhackeFinneyShawThayerRFC4880::OctetsCompare(mdc, hash))
 	{
 		if (verbose)
+		{
 			std::cerr << "ERROR: MDC does not match (security issue)" <<
 				std::endl;
+		}
 		return false;
 	}
 	return true;
+}
+
+void TMCG_OpenPGP_Message::PrintInfo
+	() const
+{
+	std::cerr << "INFO: msg version = " << (int)version <<
+		" have_sed = " << (int)have_sed <<
+		" have_seipd = " << (int)have_seipd <<
+		" have_aead = " << (int)have_aead <<
+		" format = 0x" << std::hex << (int)format << std::dec <<
+		" PKESKs.size() = " << PKESKs.size() <<
+		" SKESKs.size() = " << SKESKs.size() <<	
+		" signatures.size() = " << signatures.size() <<	
+		" encrypted_message.size() = " << encrypted_message.size() <<
+		" signed_message.size() = " << signed_message.size() <<
+		" compressed_message.size() = " << compressed_message.size() <<
+		" literal_message.size() = " << literal_message.size() <<
+		std::endl;	
 }
 
 bool TMCG_OpenPGP_Message::Decrypt
@@ -5601,8 +6751,10 @@ bool TMCG_OpenPGP_Message::Decrypt
 	else
 	{
 		if (verbose)
-			std::cerr << "ERROR: wrong length (" << key.size() <<
-				" bytes) of session key found" << std::endl;
+		{
+			std::cerr << "ERROR: wrong length (" << key.size() << " bytes) " <<
+				"of session key found" << std::endl;
+		}
 		return false;
 	}
 	if (have_aead)
@@ -5622,9 +6774,9 @@ bool TMCG_OpenPGP_Message::Decrypt
 		{
 			if (verbose)
 			{
-				std::cerr << "ERROR: SymmetricDecryptAEAD() failed" <<
-					" with rc = " << gcry_err_code(ret) << 
-					" str = " << gcry_strerror(ret) << std::endl;
+				std::cerr << "ERROR: SymmetricDecryptAEAD() failed " <<
+					"with rc = " << gcry_err_code(ret) << " " <<
+					"str = " << gcry_strerror(ret) << std::endl;
 			}
 			return false;
 		}
@@ -5638,8 +6790,10 @@ bool TMCG_OpenPGP_Message::Decrypt
 		if (ret)
 		{
 			if (verbose)
-				std::cerr << "ERROR: SymmetricDecrypt() failed" <<
-					" with rc = " << gcry_err_code(ret) << std::endl;
+			{
+				std::cerr << "ERROR: SymmetricDecrypt() failed " <<
+					"with rc = " << gcry_err_code(ret) << std::endl;
+			}
 			return false;
 		}
 		// copy the decryption result for computing the MDC
@@ -5682,8 +6836,11 @@ bool TMCG_OpenPGP_Message::Decrypt
 		else
 		{
 			if (verbose)
-				std::cerr << "WARNING: encrypted message is not integrity" <<
-					" protected (security issue)" << std::endl;
+			{
+				std::cerr << "ERROR: encrypted message is not integrity " <<
+					"protected (security issue)" << std::endl;
+			}
+			return false;
 		}
 	}
 	return true;
@@ -5887,6 +7044,10 @@ size_t CallasDonnerhackeFinneyShawThayerRFC4880::AlgorithmHashLength
 			return 64; // SHA512
 		case TMCG_OPENPGP_HASHALGO_SHA224:
 			return 28; // SHA224
+		case TMCG_OPENPGP_HASHALGO_SHA3_256:
+			return 32; // SHA3-256
+		case TMCG_OPENPGP_HASHALGO_SHA3_512:
+			return 64; // SHA3-512
 		default:
 			return 0;
 	}
@@ -5911,6 +7072,10 @@ int CallasDonnerhackeFinneyShawThayerRFC4880::AlgorithmHashGCRY
 			return GCRY_MD_SHA512;
 		case TMCG_OPENPGP_HASHALGO_SHA224:
 			return GCRY_MD_SHA224;
+		case TMCG_OPENPGP_HASHALGO_SHA3_256:
+			return GCRY_MD_SHA3_256;
+		case TMCG_OPENPGP_HASHALGO_SHA3_512:
+			return GCRY_MD_SHA3_512;
 		default:
 			return 0;
 	}
@@ -5942,6 +7107,12 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::AlgorithmHashGCRYName
 		case TMCG_OPENPGP_HASHALGO_SHA224:
 			out = "sha224";
 			break;
+		case TMCG_OPENPGP_HASHALGO_SHA3_256:
+			out = "sha3-256";
+			break;
+		case TMCG_OPENPGP_HASHALGO_SHA3_512:
+			out = "sha3-512";
+			break;
 		default:
 			out = "unknown";
 	}
@@ -5972,6 +7143,12 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::AlgorithmHashTextName
 			break;
 		case TMCG_OPENPGP_HASHALGO_SHA224:
 			out = "SHA224";
+			break;
+		case TMCG_OPENPGP_HASHALGO_SHA3_256:
+			out = "SHA3-256";
+			break;
+		case TMCG_OPENPGP_HASHALGO_SHA3_512:
+			out = "SHA3-512";
 			break;
 		default:
 			out = "unknown";
@@ -6155,8 +7332,8 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::CRC24Encode
 }
 
 void CallasDonnerhackeFinneyShawThayerRFC4880::ArmorEncode
-	(const tmcg_openpgp_armor_t type, const tmcg_openpgp_octets_t &in,
-	 std::string &out)
+	(const tmcg_openpgp_armor_t type, const std::string &comment,
+	 const tmcg_openpgp_octets_t &in, std::string &out, const bool version)
 {
 	// Concatenating the following data creates ASCII Armor:
 	//  - An Armor Header Line, appropriate for the type of data
@@ -6213,7 +7390,15 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::ArmorEncode
 	// Currently defined Armor Header Keys are as follows:
 	//  - "Version", which states the OpenPGP implementation and version
 	//    used to encode the message.
-	out += "Version: LibTMCG " VERSION "\r\n";
+	if (version)
+		out += "Version: LibTMCG " VERSION "\r\n";
+	//  - "Comment", a user-defined comment. OpenPGP defines all text to
+	//    be in UTF-8. A comment may be any UTF-8 string. However, the
+	//    whole point of armoring is to provide seven-bit-clean data.
+	//    Consequently, if a comment has characters that are outside the
+	//    US-ASCII range of UTF, they may very well not survive transport.
+	if (comment.length() > 0)
+		out += "Comment: " + comment + "\r\n";
 
 	// Next, a blank (zero-length, or containing only whitespace) line
 	out += "\r\n";
@@ -6248,39 +7433,57 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::ArmorEncode
 	}
 }
 
+void CallasDonnerhackeFinneyShawThayerRFC4880::ArmorEncode
+	(const tmcg_openpgp_armor_t type, const tmcg_openpgp_octets_t &in,
+	 std::string &out)
+{
+	ArmorEncode(type, "", in, out, false);
+}
+
 tmcg_openpgp_armor_t CallasDonnerhackeFinneyShawThayerRFC4880::ArmorDecode
 	(std::string in, tmcg_openpgp_octets_t &out)
 {
 	tmcg_openpgp_armor_t type = TMCG_OPENPGP_ARMOR_UNKNOWN;
-	size_t spos = 0, epos = 0, rpos = 0, rlen = 4, cpos = 0, clen = 3;
+	size_t spos = 0, epos = 0, rpos = 0, cpos = 0;
 
-	spos = in.find("-----BEGIN PGP MESSAGE-----");
-	epos = in.find("-----END PGP MESSAGE-----");
-	if ((spos != in.npos) && (epos != in.npos) && (epos > spos))
-		type = TMCG_OPENPGP_ARMOR_MESSAGE;
-	if (!type)
+	if (type == TMCG_OPENPGP_ARMOR_UNKNOWN)
+	{
+		spos = in.find("-----BEGIN PGP MESSAGE-----");
+		epos = in.find("-----END PGP MESSAGE-----");
+		if ((spos != in.npos) && (epos != in.npos) && (epos > spos))
+			type = TMCG_OPENPGP_ARMOR_MESSAGE;
+	}
+	if (type == TMCG_OPENPGP_ARMOR_UNKNOWN)
 	{
 		spos = in.find("-----BEGIN PGP SIGNATURE-----");
 		epos = in.find("-----END PGP SIGNATURE-----");
-	}		
-	if (!type && (spos != in.npos) && (epos != in.npos) && (epos > spos))
-		type = TMCG_OPENPGP_ARMOR_SIGNATURE;
-	if (!type)
+		if ((spos != in.npos) && (epos != in.npos) && (epos > spos))
+			type = TMCG_OPENPGP_ARMOR_SIGNATURE;
+	}
+	if (type == TMCG_OPENPGP_ARMOR_UNKNOWN)
 	{
 		spos = in.find("-----BEGIN PGP PRIVATE KEY BLOCK-----");
 		epos = in.find("-----END PGP PRIVATE KEY BLOCK-----");
-	}		
-	if (!type && (spos != in.npos) && (epos != in.npos) && (epos > spos))
-		type = TMCG_OPENPGP_ARMOR_PRIVATE_KEY_BLOCK;
-	if (!type)
+		if ((spos != in.npos) && (epos != in.npos) && (epos > spos))
+			type = TMCG_OPENPGP_ARMOR_PRIVATE_KEY_BLOCK;
+	}
+	if (type == TMCG_OPENPGP_ARMOR_UNKNOWN)
 	{
 		spos = in.find("-----BEGIN PGP PUBLIC KEY BLOCK-----");
 		epos = in.find("-----END PGP PUBLIC KEY BLOCK-----");
+		if ((spos != in.npos) && (epos != in.npos) && (epos > spos))
+			type = TMCG_OPENPGP_ARMOR_PUBLIC_KEY_BLOCK;
 	}
-	if (!type && (spos != in.npos) && (epos != in.npos) && (epos > spos))
-		type = TMCG_OPENPGP_ARMOR_PUBLIC_KEY_BLOCK;
+	if (type == TMCG_OPENPGP_ARMOR_UNKNOWN)
+	{
+		spos = in.find("-----BEGIN PGP ARMORED FILE-----");
+		epos = in.find("-----END PGP ARMORED FILE-----");
+		if ((spos != in.npos) && (epos != in.npos) && (epos > spos))
+			type = TMCG_OPENPGP_ARMOR_FILE;
+	}	
 	in.erase(std::remove(in.begin(), in.end(), ' '), in.end());
 	in.erase(std::remove(in.begin(), in.end(), '\t'), in.end());
+	in.erase(std::remove(in.begin(), in.end(), '\r'), in.end());
 	switch (type)
 	{
 		case TMCG_OPENPGP_ARMOR_MESSAGE:
@@ -6299,46 +7502,52 @@ tmcg_openpgp_armor_t CallasDonnerhackeFinneyShawThayerRFC4880::ArmorDecode
 			spos = in.find("-----BEGINPGPPUBLICKEYBLOCK-----");
 			epos = in.find("-----ENDPGPPUBLICKEYBLOCK-----");
 			break;
+		case TMCG_OPENPGP_ARMOR_FILE:
+			spos = in.find("-----BEGINPGPARMOREDFILE-----");
+			epos = in.find("-----ENDPGPARMOREDFILE-----");
+			break;
 		default:
 			return TMCG_OPENPGP_ARMOR_UNKNOWN; // header and trailer not found
 	}
-	rpos = in.find("\r\n\r\n", spos);
+	rpos = in.find("\n\n", spos);
 	if (rpos == in.npos)
 	{
-		rpos = in.find("\n\n", spos);
-		rlen = 2;
+		std::cerr << "ERROR: armor separator not found" << std::endl;
+		return TMCG_OPENPGP_ARMOR_UNKNOWN; // separator (blank line) not found
 	}
-	cpos = in.find("\r\n=", spos); // TODO: use regex for reliable detection
+	cpos = in.find("\n=", spos); // TODO: use regex for reliable detection
 	if (cpos == in.npos)
 	{
-		cpos = in.find("\n=");
-		clen = 2;
+		std::cerr << "WARNING: no armor checksum found" << std::endl;
+		cpos = epos;
 	}
-	if ((rpos == in.npos) || (cpos == in.npos))
-		return TMCG_OPENPGP_ARMOR_UNKNOWN; // wrong radix64 encoding
-	if (((spos + 24) < rpos) && ((rpos + rlen) < cpos) &&
-	    ((cpos + clen + 4) < epos))
+	if (in.find("-----", spos + 33) != epos)
 	{
-		if (in.find("-----", spos + 33) != epos)
-			return TMCG_OPENPGP_ARMOR_UNKNOWN; // nested armor block
-		tmcg_openpgp_octets_t decoded_data;
+		std::cerr << "ERROR: nested armor block found" << std::endl;
+		return TMCG_OPENPGP_ARMOR_UNKNOWN; // nested armor block found
+	}
+	if (((spos + 24) < rpos) && ((rpos + 2) < cpos))
+	{
 		std::string chksum = "";
-		std::string data = in.substr(rpos + rlen, cpos - rpos - rlen);
+		std::string data = in.substr(rpos + 2, cpos - rpos - 2);
+		tmcg_openpgp_octets_t decoded_data;
 		Radix64Decode(data, decoded_data);
-		CRC24Encode(decoded_data, chksum);
-		if (chksum != in.substr(cpos + (clen - 1), 5))
+		if ((cpos + 6) < epos)
 		{
-			std::cerr << "ERROR: wrong checksum in ArmorDecode()" << std::endl;
-			return TMCG_OPENPGP_ARMOR_UNKNOWN; // checksum error
+			CRC24Encode(decoded_data, chksum);
+			if (chksum != in.substr(cpos + 1, 5))
+			{
+				std::cerr << "ERROR: wrong armor checksum" << std::endl;
+				return TMCG_OPENPGP_ARMOR_UNKNOWN; // checksum error
+			}
 		}
 		out.insert(out.end(), decoded_data.begin(), decoded_data.end());
 		return type;
 	}
 	else
 	{
-		std::cerr << "ERROR: ArmorDecode() spos = " << spos <<
-			" rpos = " << rpos << " cpos = " << cpos <<
-			" epos = " << epos << " rlen = " << rlen << std::endl; 
+		std::cerr << "ERROR: ArmorDecode() spos = " << spos << " rpos = " <<
+			rpos << " cpos = " << cpos << " epos = " << epos << std::endl; 
 		return TMCG_OPENPGP_ARMOR_UNKNOWN;
 	}
 }
@@ -6502,7 +7711,7 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::HashCompute
 	int a = AlgorithmHashGCRY(algo);
 	size_t dlen = gcry_md_get_algo_dlen(a);
 
-	if (!dlen || !in.size())
+	if ((dlen == 0) || (in.size() == 0))
 	{
 		out.clear(); // indicates an error
 		return;
@@ -6647,9 +7856,7 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::HashComputeFile
 		{
 			std::string line_str(line);
 			size_t line_len = line_str.length();
-			while ((line_len > 0) && ((line_str[line_len-1] == ' ') ||
-				(line_str[line_len-1] == '\t') ||
-				(line_str[line_len-1] == '\r')))
+			while ((line_len > 0) && (line_str[line_len-1] == '\r'))
 			{
 				line_len--;
 			}
@@ -6865,17 +8072,6 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketLengthEncode
 	}
 }
 
-void CallasDonnerhackeFinneyShawThayerRFC4880::FixedLengthEncode
-	(const size_t len, tmcg_openpgp_octets_t &out)
-{
-	// four-octet length format with 0xFF prefix
-	out.push_back(0xFF);
-	out.push_back((len >> 24) & 0xFF);
-	out.push_back((len >> 16) & 0xFF);
-	out.push_back((len >> 8) & 0xFF);
-	out.push_back(len & 0xFF);
-}
-
 size_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketLengthDecode
 	(const tmcg_openpgp_octets_t &in, const bool newformat,
 	 tmcg_openpgp_byte_t lentype, uint32_t &len, bool &partlen)
@@ -6928,7 +8124,7 @@ size_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketLengthDecode
 		// a power of 2, from 1 to 1,073,741,824 (2 to the 30th
 		// power). It is recognized by its one octet value that is
 		// greater than or equal to 224, and less than 255.
-		len = (1 << (in[0] & 0x1F));
+		len = ((uint32_t)1 << (in[0] & 0x1F));
 		partlen = true;
 		return 1;
 	}
@@ -7092,7 +8288,8 @@ size_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketMPIDecode
 	sum %= 65536;
 	if (in.size() < (2 + buflen))
 		return 0; // error: mpi too short
-	tmcg_openpgp_byte_t *buffer = new tmcg_openpgp_byte_t[buflen];
+	tmcg_openpgp_byte_t *buffer = new tmcg_openpgp_byte_t[buflen+1];
+	memset(buffer, 0, buflen+1);
 	for (size_t i = 0; i < buflen; i++)
 	{
 		buffer[i] = in[2+i];
@@ -7157,7 +8354,7 @@ size_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketMPIDecode
 void CallasDonnerhackeFinneyShawThayerRFC4880::PacketStringEncode
 	(const std::string &in, tmcg_openpgp_octets_t &out)
 {
-	FixedLengthEncode(in.length(), out);
+	PacketLengthEncode(in.length(), out);
 	for (size_t i = 0; i < in.length(); i++)
 		out.push_back(in[i]);
 }
@@ -7169,10 +8366,10 @@ size_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketStringDecode
 	uint32_t len = 0;
 	bool partlen = false;
 
-	headlen = PacketLengthDecode(in, true, 0x00, len, partlen);
-	if (!headlen || partlen || (headlen == 42))
-		return 0; // error: wrong length
-	if (!len)
+	headlen = PacketLengthDecode(in, true, 0xFF, len, partlen);
+	if (partlen || (headlen == 0) || (headlen == 42))
+		return 0; // error: wrong type of length
+	if (len == 0)
 		return 0; // error: string of zero length
 	if (in.size() < (len + headlen))
 		return 0; // error: input too short 
@@ -7390,7 +8587,7 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::SubpacketEncode
 	// The length includes the type octet but not this length. Its format
 	// is similar to the "new" format packet header lengths, but cannot
 	// have Partial Body Lengths.
-	FixedLengthEncode(in.size() + 1, out);
+	PacketLengthEncode(in.size() + 1, out);
 	if (critical)
 		out.push_back(type | 0x80);
 	else
@@ -7406,7 +8603,7 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareSelfSignature
 	 const tmcg_openpgp_octets_t &issuer, tmcg_openpgp_octets_t &out)
 {
 	PacketSigPrepareSelfSignature(type, TMCG_OPENPGP_PKALGO_DSA, hashalgo,
-		sigtime, keyexptime, flags, issuer, out);
+		sigtime, keyexptime, flags, issuer, true, out);
 }
 
 void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareSelfSignature
@@ -7415,103 +8612,76 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareSelfSignature
 	 const tmcg_openpgp_hashalgo_t hashalgo,
 	 const time_t sigtime, const time_t keyexptime, 
 	 const tmcg_openpgp_octets_t &flags,
-	 const tmcg_openpgp_octets_t &issuer, tmcg_openpgp_octets_t &out)
+	 const tmcg_openpgp_octets_t &issuer,
+	 const bool rfc4880bis,
+	 tmcg_openpgp_octets_t &out)
 {
-	size_t subpkts = 8;
-	size_t subpktlen = (subpkts * 6) + 4 + 2 + 3 + 1 + 1 + flags.size() + 1;
+	// prepare the included subpackets
+	tmcg_openpgp_octets_t subpackets;
+	// 1. signature creation time (length = 4)
+	tmcg_openpgp_octets_t subpkt_sigtime;
+	PacketTimeEncode(sigtime, subpkt_sigtime);
+	SubpacketEncode(2, false, subpkt_sigtime, subpackets);
+	// [optional] key expiration time (length = 4)
+	if (keyexptime != 0)
+	{
+		tmcg_openpgp_octets_t subpkt_keyexptime;
+		PacketTimeEncode(keyexptime, subpkt_keyexptime);
+		SubpacketEncode(9, false, subpkt_keyexptime, subpackets);
+	}
+	// 2. preferred symmetric algorithms (length = 2)
+	tmcg_openpgp_octets_t psa;
+	psa.push_back(TMCG_OPENPGP_SKALGO_AES256);
+	psa.push_back(TMCG_OPENPGP_SKALGO_TWOFISH);
+	SubpacketEncode(11, false, psa, subpackets);
+	// 3. issuer (variable length)
 	if (issuer.size() == 20)
 	{
-		subpktlen += (6 + 21); // size of Issuer Fingerprint subpacket
-		subpktlen += 8; // size of Issuer subpacket
+		tmcg_openpgp_octets_t keyid;
+		// extract low-order 64 bits of the fingerprint
+		for (size_t i = 12; i < 20; i++)
+			keyid.push_back(issuer[i]);
+		SubpacketEncode(16, false, keyid, subpackets);
 	}
-	else
-		subpktlen += issuer.size();
-	if (keyexptime != 0)
-		subpktlen += (6 + 4);
-#if GCRYPT_VERSION_NUMBER < 0x010700
-	// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
-	subpktlen += (6 + 1);
-#if GCRYPT_VERSION_NUMBER < 0x010900
-	// FIXME: remove, if libgcrypt >= 1.9.0 required by configure.ac
-#else
-	subpktlen += 1;
-#endif
-#endif
-	out.push_back(4); // V4 format
-	out.push_back(type); // type (e.g. 0x10-0x13 for UID certification)
-	out.push_back(pkalgo); // public-key algorithm
-	out.push_back(hashalgo); // hash algorithm
-	// hashed subpacket area
-	out.push_back((subpktlen >> 8) & 0xFF); // length hashed subpacket data
-	out.push_back(subpktlen & 0xFF);
-		// 1. signature creation time (length = 4)
-		tmcg_openpgp_octets_t subpkt_sigtime;
-		PacketTimeEncode(sigtime, subpkt_sigtime);
-		SubpacketEncode(2, false, subpkt_sigtime, out);
-		// [optional] key expiration time (length = 4)
-		if (keyexptime != 0)
-		{
-			tmcg_openpgp_octets_t subpkt_keyexptime;
-			PacketTimeEncode(keyexptime, subpkt_keyexptime);
-			SubpacketEncode(9, false, subpkt_keyexptime, out);
-		}
-		// 2. preferred symmetric algorithms (length = 2)
-		tmcg_openpgp_octets_t psa;
-		psa.push_back(TMCG_OPENPGP_SKALGO_AES256);
-		psa.push_back(TMCG_OPENPGP_SKALGO_TWOFISH);
-		SubpacketEncode(11, false, psa, out);
-		// 3. issuer (variable length)
-		if (issuer.size() == 20)
-		{
-			tmcg_openpgp_octets_t keyid;
-			// extract low-order 64 bits of the fingerprint
-			for (size_t i = 12; i < 20; i++)
-				keyid.push_back(issuer[i]);
-			SubpacketEncode(16, false, keyid, out);
-		}
-		else
-			SubpacketEncode(16, false, issuer, out);
-		// 4. preferred hash algorithms  (length = 3)
-		tmcg_openpgp_octets_t pha;
-		pha.push_back(TMCG_OPENPGP_HASHALGO_SHA512);
-		pha.push_back(TMCG_OPENPGP_HASHALGO_SHA384);
-		pha.push_back(TMCG_OPENPGP_HASHALGO_SHA256);
-		SubpacketEncode(21, false, pha, out);
-		// 5. preferred compression algorithms  (length = 1)
-		tmcg_openpgp_octets_t pca;
-		pca.push_back(0); // uncompressed
-		SubpacketEncode(22, false, pca, out);
-		// 6. key server preferences (length = 1)
-		tmcg_openpgp_octets_t ksp;
-		ksp.push_back(0x80); // no-modify
-		SubpacketEncode(23, false, ksp, out);
-		// 7. key flags (variable length)
-		SubpacketEncode(27, false, flags, out);
-		// 8. features (length = 1)
-		tmcg_openpgp_octets_t features;
-		features.push_back(0x01); // Modification Detection (tags 18, 19)
-#if GCRYPT_VERSION_NUMBER < 0x010700
-		// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
+	else if (issuer.size() == 8)
+		SubpacketEncode(16, false, issuer, subpackets);
+	// 4. preferred hash algorithms  (length = 3)
+	tmcg_openpgp_octets_t pha;
+	pha.push_back(TMCG_OPENPGP_HASHALGO_SHA512);
+	pha.push_back(TMCG_OPENPGP_HASHALGO_SHA384);
+	pha.push_back(TMCG_OPENPGP_HASHALGO_SHA256);
+	SubpacketEncode(21, false, pha, subpackets);
+	// 5. preferred compression algorithms  (length = 1)
+	tmcg_openpgp_octets_t pca;
+	pca.push_back(TMCG_OPENPGP_COMPALGO_ZIP);
+	SubpacketEncode(22, false, pca, subpackets);
+	// 6. key server preferences (length = 1)
+	tmcg_openpgp_octets_t ksp;
+	ksp.push_back(0x80); // no-modify
+	SubpacketEncode(23, false, ksp, subpackets);
+	// 7. key flags (variable length)
+	SubpacketEncode(27, false, flags, subpackets);
+	// 8. features (length = 1)
+	tmcg_openpgp_octets_t features;
+	features.push_back(0x01); // Modification Detection (tags 18, 19)
+	if (rfc4880bis)
+	{
 		// AEAD Encrypted Data Packet (packet 20) and version 5 Symmetric-Key
 		// Encrypted Session Key Packets (packet 3)
 		features[0] |= 0x02;
-#endif
-		SubpacketEncode(30, false, features, out);
-		// [optional] issuer fingerprint
-		if (issuer.size() == 20)
-		{
-			tmcg_openpgp_octets_t issuerfpr;
-			issuerfpr.push_back(4); // key version number (V4)
-			issuerfpr.insert(issuerfpr.end(),
-				issuer.begin(), issuer.end());			
-			SubpacketEncode(33, false, issuerfpr, out);
-		}
-#if GCRYPT_VERSION_NUMBER < 0x010700
-		// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
-		// [optional] preferred AEAD algorithms  (variable length)
+	}
+	SubpacketEncode(30, false, features, subpackets);
+	// [optional] issuer fingerprint
+	if (issuer.size() == 20)
+	{
+		tmcg_openpgp_octets_t issuerfpr;
+		issuerfpr.push_back(4); // key version number (V4)
+		issuerfpr.insert(issuerfpr.end(), issuer.begin(), issuer.end());			
+		SubpacketEncode(33, false, issuerfpr, subpackets);
+	}
+	// [optional] preferred AEAD algorithms  (variable length)
+	if (rfc4880bis)
+	{
 		tmcg_openpgp_octets_t paa;
 #if GCRYPT_VERSION_NUMBER < 0x010900
 		// FIXME: remove, if libgcrypt >= 1.9.0 required by configure.ac
@@ -7519,8 +8689,17 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareSelfSignature
 		paa.push_back(TMCG_OPENPGP_AEADALGO_EAX);
 #endif
 		paa.push_back(TMCG_OPENPGP_AEADALGO_OCB);
-		SubpacketEncode(34, false, paa, out);
-#endif
+		SubpacketEncode(34, false, paa, subpackets);
+	}
+	// create the signature packet
+	out.push_back(4); // V4 format
+	out.push_back(type); // type (e.g. 0x10-0x13 for UID certification)
+	out.push_back(pkalgo); // public-key algorithm
+	out.push_back(hashalgo); // hash algorithm
+	// hashed subpacket area
+	out.push_back((subpackets.size() >> 8) & 0xFF);
+	out.push_back(subpackets.size() & 0xFF);
+	out.insert(out.end(), subpackets.begin(), subpackets.end());
 }
 
 void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareDesignatedRevoker
@@ -7530,7 +8709,7 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareDesignatedRevoker
 	 tmcg_openpgp_octets_t &out)
 {
 	PacketSigPrepareDesignatedRevoker(TMCG_OPENPGP_PKALGO_DSA, hashalgo,
-		sigtime, flags, issuer, pkalgo2, revoker, out);
+		sigtime, flags, issuer, pkalgo2, revoker, true, out);
 }
 
 void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareDesignatedRevoker
@@ -7538,116 +8717,97 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareDesignatedRevoker
 	 const tmcg_openpgp_hashalgo_t hashalgo, const time_t sigtime,
 	 const tmcg_openpgp_octets_t &flags, const tmcg_openpgp_octets_t &issuer,
 	 const tmcg_openpgp_pkalgo_t pkalgo2, const tmcg_openpgp_octets_t &revoker,
+	 const bool rfc4880bis,
 	 tmcg_openpgp_octets_t &out)
 {
-	size_t subpkts = 8;
-	size_t subpktlen = (subpkts * 6) + 4 + 2 + 3 + 1 + 1 + flags.size() + 1;
+	// prepare the included subpackets
+	tmcg_openpgp_octets_t subpackets;
+	// 1. signature creation time (length = 4)
+	tmcg_openpgp_octets_t subpkt_sigtime;
+	PacketTimeEncode(sigtime, subpkt_sigtime);
+	SubpacketEncode(2, false, subpkt_sigtime, subpackets);
+	// 2. preferred symmetric algorithms (length = 2)
+	tmcg_openpgp_octets_t psa;
+	psa.push_back(TMCG_OPENPGP_SKALGO_AES256);
+	psa.push_back(TMCG_OPENPGP_SKALGO_TWOFISH);
+	SubpacketEncode(11, false, psa, subpackets);
+	// [optional] revocation key (length = 22)
+	if (revoker.size())
+	{
+		tmcg_openpgp_octets_t rk;
+		rk.push_back(0x80); // class octet (non-sensitive relationship)
+		rk.push_back(pkalgo2); // public-key algorithm
+		assert((revoker.size() == 20));
+		for (size_t i = 0; i < 20; i++)
+			rk.push_back(revoker[i]); // SHA-1 fingerprint
+		SubpacketEncode(12, true, rk, subpackets); // critical bit set
+	}
+	// 3. issuer (variable length)
 	if (issuer.size() == 20)
 	{
-		subpktlen += (6 + 21); // size of Issuer Fingerprint subpacket
-		subpktlen += 8; // size of Issuer subpacket
+		tmcg_openpgp_octets_t keyid;
+		// extract low-order 64 bits of the fingerprint
+		for (size_t i = 12; i < 20; i++)
+			keyid.push_back(issuer[i]);
+		SubpacketEncode(16, false, keyid, subpackets);
 	}
-	else
-		subpktlen += issuer.size();
-	if (revoker.size())
-		subpktlen += (6 + 22); // size of Revocation Key subpacket
-#if GCRYPT_VERSION_NUMBER < 0x010700
-	// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
-	subpktlen += (6 + 1);
+	else if (issuer.size() == 8)
+		SubpacketEncode(16, false, issuer, subpackets);
+	// 4. preferred hash algorithms (length = 3)
+	tmcg_openpgp_octets_t pha;
+	pha.push_back(TMCG_OPENPGP_HASHALGO_SHA512);
+	pha.push_back(TMCG_OPENPGP_HASHALGO_SHA384);
+	pha.push_back(TMCG_OPENPGP_HASHALGO_SHA256);
+	SubpacketEncode(21, false, pha, subpackets);
+	// 5. preferred compression algorithms (length = 1)
+	tmcg_openpgp_octets_t pca;
+	pca.push_back(TMCG_OPENPGP_COMPALGO_ZIP);
+	SubpacketEncode(22, false, pca, subpackets);
+	// 6. key server preferences (length = 1)
+	tmcg_openpgp_octets_t ksp;
+	ksp.push_back(0x80); // no-modify
+	SubpacketEncode(23, false, ksp, subpackets);
+	// 7. key flags (variable length)
+	SubpacketEncode(27, false, flags, subpackets);
+	// 8. features (length = 1)
+	tmcg_openpgp_octets_t features;
+	features.push_back(0x01); // Modification Detection (tags 18, 19)
+	if (rfc4880bis)
+	{
+		// AEAD Encrypted Data Packet (packet 20) and version 5 Symmetric-Key
+		// Encrypted Session Key Packets (packet 3)
+		features[0] |= 0x02;
+	}
+	SubpacketEncode(30, false, features, subpackets);
+	// [optional] issuer fingerprint
+	if (issuer.size() == 20)
+	{
+		tmcg_openpgp_octets_t issuerfpr;
+		issuerfpr.push_back(4); // key version number (V4)
+		issuerfpr.insert(issuerfpr.end(), issuer.begin(), issuer.end());			
+		SubpacketEncode(33, false, issuerfpr, subpackets);
+	}
+	// [optional] preferred AEAD algorithms  (variable length)
+	if (rfc4880bis)
+	{
+		tmcg_openpgp_octets_t paa;
 #if GCRYPT_VERSION_NUMBER < 0x010900
-	// FIXME: remove, if libgcrypt >= 1.9.0 required by configure.ac
-#else
-	subpktlen += 1;
+		// FIXME: remove, if libgcrypt >= 1.9.0 required by configure.ac
+#else		
+		paa.push_back(TMCG_OPENPGP_AEADALGO_EAX);
 #endif
-#endif
+		paa.push_back(TMCG_OPENPGP_AEADALGO_OCB);
+		SubpacketEncode(34, false, paa, subpackets);
+	}
+	// create the signature packet
 	out.push_back(4); // V4 format
 	out.push_back(TMCG_OPENPGP_SIGNATURE_DIRECTLY_ON_A_KEY); // type
 	out.push_back(pkalgo); // public-key algorithm
 	out.push_back(hashalgo); // hash algorithm
 	// hashed subpacket area
-	out.push_back((subpktlen >> 8) & 0xFF); // length hashed subpacket data
-	out.push_back(subpktlen & 0xFF);
-		// 1. signature creation time (length = 4)
-		tmcg_openpgp_octets_t subpkt_sigtime;
-		PacketTimeEncode(sigtime, subpkt_sigtime);
-		SubpacketEncode(2, false, subpkt_sigtime, out);
-		// 2. preferred symmetric algorithms (length = 2)
-		tmcg_openpgp_octets_t psa;
-		psa.push_back(TMCG_OPENPGP_SKALGO_AES256); // AES256
-		psa.push_back(TMCG_OPENPGP_SKALGO_TWOFISH); // Twofish
-		SubpacketEncode(11, false, psa, out);
-		// [optional] revocation key (length = 22)
-		if (revoker.size())
-		{
-			tmcg_openpgp_octets_t rk;
-			rk.push_back(0x80); // class octet (non-sensitive relationship)
-			rk.push_back(pkalgo2); // public-key algorithm
-			assert((revoker.size() == 20));
-			for (size_t i = 0; i < 20; i++)
-				rk.push_back(revoker[i]); // SHA-1 fingerprint
-			SubpacketEncode(12, true, rk, out); // critical bit set
-		}
-		// 3. issuer (variable length)
-		if (issuer.size() == 20)
-		{
-			tmcg_openpgp_octets_t keyid;
-			// extract low-order 64 bits of the fingerprint
-			for (size_t i = 12; i < 20; i++)
-				keyid.push_back(issuer[i]);
-			SubpacketEncode(16, false, keyid, out);
-		}
-		else
-			SubpacketEncode(16, false, issuer, out);
-		// 4. preferred hash algorithms  (length = 3)
-		tmcg_openpgp_octets_t pha;
-		pha.push_back(TMCG_OPENPGP_HASHALGO_SHA512); // SHA512
-		pha.push_back(TMCG_OPENPGP_HASHALGO_SHA384); // SHA384
-		pha.push_back(TMCG_OPENPGP_HASHALGO_SHA256); // SHA256
-		SubpacketEncode(21, false, pha, out);
-		// 5. preferred compression algorithms  (length = 1)
-		tmcg_openpgp_octets_t pca;
-		pca.push_back(0); // uncompressed
-		SubpacketEncode(22, false, pca, out);
-		// 6. key server preferences (length = 1)
-		tmcg_openpgp_octets_t ksp;
-		ksp.push_back(0x80); // no-modify
-		SubpacketEncode(23, false, ksp, out);
-		// 7. key flags (variable length)
-		SubpacketEncode(27, false, flags, out);
-		// 8. features (length = 1)
-		tmcg_openpgp_octets_t features;
-		features.push_back(0x01); // Modification Detection (tags 18, 19)
-#if GCRYPT_VERSION_NUMBER < 0x010700
-		// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
-		// AEAD Encrypted Data Packet (packet 20) and version 5 Symmetric-Key
-		// Encrypted Session Key Packets (packet 3)
-		features[0] |= 0x02;
-#endif
-		SubpacketEncode(30, false, features, out);
-		// [optional] issuer fingerprint
-		if (issuer.size() == 20)
-		{
-			tmcg_openpgp_octets_t issuerfpr;
-			issuerfpr.push_back(4); // key version number (V4)
-			issuerfpr.insert(issuerfpr.end(),
-				issuer.begin(), issuer.end());			
-			SubpacketEncode(33, false, issuerfpr, out);
-		}
-#if GCRYPT_VERSION_NUMBER < 0x010700
-		// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
-		// [optional] preferred AEAD algorithms  (variable length)
-		tmcg_openpgp_octets_t paa;
-#if GCRYPT_VERSION_NUMBER < 0x010900
-		// FIXME: remove, if libgcrypt >= 1.9.0 required by configure.ac
-#else
-		paa.push_back(TMCG_OPENPGP_AEADALGO_EAX);
-#endif
-		paa.push_back(TMCG_OPENPGP_AEADALGO_OCB);
-		SubpacketEncode(34, false, paa, out);
-#endif
+	out.push_back((subpackets.size() >> 8) & 0xFF);
+	out.push_back(subpackets.size() & 0xFF);
+	out.insert(out.end(), subpackets.begin(), subpackets.end());
 }
 
 void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareDetachedSignature
@@ -7680,80 +8840,67 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareDetachedSignature
 	 const std::string &policy, const tmcg_openpgp_octets_t &issuer,
 	 tmcg_openpgp_octets_t &out)
 {
-	size_t subpkts = 2;
-	size_t subpktlen = (subpkts * 6) + 4;
+	// prepare the included subpackets
+	tmcg_openpgp_octets_t subpackets;
+	// 1. signature creation time (length = 4)
+	tmcg_openpgp_octets_t subpkt_sigtime;
+	PacketTimeEncode(sigtime, subpkt_sigtime);
+	SubpacketEncode(2, false, subpkt_sigtime, subpackets);
+	// [optional] signature expiration time (length = 4)
+	if (sigexptime != 0)
+	{
+		tmcg_openpgp_octets_t subpkt_sigexptime;
+		PacketTimeEncode(sigexptime, subpkt_sigexptime);
+		SubpacketEncode(3, false, subpkt_sigexptime, subpackets);
+	}
+	// 2. issuer (variable length)
 	if (issuer.size() == 20)
 	{
-		subpktlen += (6 + 21); // size of Issuer Fingerprint subpacket
-		subpktlen += 8; // size of Issuer subpacket
+		tmcg_openpgp_octets_t keyid;
+		// extract low-order 64 bits of the fingerprint
+		for (size_t i = 12; i < 20; i++)
+			keyid.push_back(issuer[i]);
+		SubpacketEncode(16, false, keyid, subpackets);
 	}
 	else if (issuer.size() == 32)
 	{
-		subpktlen += (1 + issuer.size()); // size of Issuer Fingerprint subpacket
-	}
-	else
-		subpktlen += issuer.size();
-	if (sigexptime != 0)
-		subpktlen += (6 + 4);
+		// The OpenPGP Key ID of the key issuing the signature. If the
+		// version of that key is greater than 4, this subpacket MUST NOT
+		// be included in the signature.
+	} 
+	else if (issuer.size() == 8)
+		SubpacketEncode(16, false, issuer, subpackets);
+	// [optional] policy URI (variable length)
 	if (policy.length())
-		subpktlen += (6 + policy.length());
+	{
+		tmcg_openpgp_octets_t subpkt_policy;
+		for (size_t i = 0; i < policy.length(); i++)
+			subpkt_policy.push_back(policy[i]);
+		SubpacketEncode(26, false, subpkt_policy, subpackets);
+	}
+	// [optional] issuer fingerprint
+	if ((issuer.size() == 20) || (issuer.size() == 32))
+	{
+		tmcg_openpgp_octets_t subpkt_issuerfpr;
+		if (issuer.size() == 20)
+			subpkt_issuerfpr.push_back(4); // key version number (V4)
+		else if (issuer.size() == 32)
+			subpkt_issuerfpr.push_back(5); // key version number (V5)
+		else
+			subpkt_issuerfpr.push_back(0); // this indicates an error
+		subpkt_issuerfpr.insert(subpkt_issuerfpr.end(),
+			issuer.begin(), issuer.end());			
+		SubpacketEncode(33, false, subpkt_issuerfpr, subpackets);
+	}
+	// create the signature packet
 	out.push_back(4); // V4 format
 	out.push_back(type); // type (e.g. 0x00 for signature on a binary document)
 	out.push_back(pkalgo); // public-key algorithm
 	out.push_back(hashalgo); // hash algorithm
 	// hashed subpacket area
-	out.push_back((subpktlen >> 8) & 0xFF); // length hashed subpacket data
-	out.push_back(subpktlen & 0xFF);
-		// 1. signature creation time (length = 4)
-		tmcg_openpgp_octets_t subpkt_sigtime;
-		PacketTimeEncode(sigtime, subpkt_sigtime);
-		SubpacketEncode(2, false, subpkt_sigtime, out);
-		// [optional] signature expiration time (length = 4)
-		if (sigexptime != 0)
-		{
-			tmcg_openpgp_octets_t subpkt_sigexptime;
-			PacketTimeEncode(sigexptime, subpkt_sigexptime);
-			SubpacketEncode(3, false, subpkt_sigexptime, out);
-		}
-		// 2. issuer (variable length)
-		if (issuer.size() == 20)
-		{
-			tmcg_openpgp_octets_t keyid;
-			// extract low-order 64 bits of the fingerprint
-			for (size_t i = 12; i < 20; i++)
-				keyid.push_back(issuer[i]);
-			SubpacketEncode(16, false, keyid, out);
-		}
-		else if (issuer.size() == 32)
-		{
-			// The OpenPGP Key ID of the key issuing the signature. If the
-			// version of that key is greater than 4, this subpacket MUST NOT
-			// be included in the signature.
-		} 
-		else
-			SubpacketEncode(16, false, issuer, out);
-		// [optional] policy URI (variable length)
-		if (policy.length())
-		{
-			tmcg_openpgp_octets_t subpkt_policy;
-			for (size_t i = 0; i < policy.length(); i++)
-				subpkt_policy.push_back(policy[i]);
-			SubpacketEncode(26, false, subpkt_policy, out);
-		}
-		// [optional] issuer fingerprint
-		if ((issuer.size() == 20) || (issuer.size() == 32))
-		{
-			tmcg_openpgp_octets_t subpkt_issuerfpr;
-			if (issuer.size() == 20)
-				subpkt_issuerfpr.push_back(4); // key version number (V4)
-			else if (issuer.size() == 32)
-				subpkt_issuerfpr.push_back(5); // key version number (V5)
-			else
-				subpkt_issuerfpr.push_back(0); // this indicates an error
-			subpkt_issuerfpr.insert(subpkt_issuerfpr.end(),
-				issuer.begin(), issuer.end());			
-			SubpacketEncode(33, false, subpkt_issuerfpr, out);
-		}
+	out.push_back((subpackets.size() >> 8) & 0xFF);
+	out.push_back(subpackets.size() & 0xFF);
+	out.insert(out.end(), subpackets.begin(), subpackets.end());
 }
 
 void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareDetachedSignatureV5
@@ -7764,51 +8911,47 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareDetachedSignature
 	 const std::string &policy, const tmcg_openpgp_octets_t &issuerfpr,
 	 tmcg_openpgp_octets_t &out)
 {
-	size_t subpkts = 2;
-	size_t subpktlen = (subpkts * 6) + 4;
-
-	subpktlen += (1 + issuerfpr.size()); // size of Issuer Fingerprint subpacket
+	// prepare the included subpackets
+	tmcg_openpgp_octets_t subpackets;
+	// 1. signature creation time (length = 4)
+	tmcg_openpgp_octets_t subpkt_sigtime;
+	PacketTimeEncode(sigtime, subpkt_sigtime);
+	SubpacketEncode(2, false, subpkt_sigtime, subpackets);
+	// [optional] signature expiration time (length = 4)
 	if (sigexptime != 0)
-		subpktlen += (6 + 4);
+	{
+		tmcg_openpgp_octets_t subpkt_sigexptime;
+		PacketTimeEncode(sigexptime, subpkt_sigexptime);
+		SubpacketEncode(3, false, subpkt_sigexptime, subpackets);
+	}
+	// [optional] policy URI (variable length)
 	if (policy.length())
-		subpktlen += (6 + policy.length());
+	{
+		tmcg_openpgp_octets_t subpkt_policy;
+		for (size_t i = 0; i < policy.length(); i++)
+			subpkt_policy.push_back(policy[i]);
+		SubpacketEncode(26, false, subpkt_policy, subpackets);
+	}
+	// 2. issuer fingerprint
+	tmcg_openpgp_octets_t subpkt_issuerfpr;
+	if (issuerfpr.size() == 20)
+		subpkt_issuerfpr.push_back(4); // key version number (V4)
+	else if (issuerfpr.size() == 32)
+		subpkt_issuerfpr.push_back(5); // key version number (V5)
+	else
+		subpkt_issuerfpr.push_back(0); // this indicates an error
+	subpkt_issuerfpr.insert(subpkt_issuerfpr.end(),
+		issuerfpr.begin(), issuerfpr.end());			
+	SubpacketEncode(33, false, subpkt_issuerfpr, subpackets);
+	// create the signature packet
 	out.push_back(5); // V5 format
 	out.push_back(type); // type (e.g. 0x00 for signature on a binary document)
 	out.push_back(pkalgo); // public-key algorithm
 	out.push_back(hashalgo); // hash algorithm
 	// hashed subpacket area
-	out.push_back((subpktlen >> 8) & 0xFF); // length hashed subpacket data
-	out.push_back(subpktlen & 0xFF);
-		// 1. signature creation time (length = 4)
-		tmcg_openpgp_octets_t subpkt_sigtime;
-		PacketTimeEncode(sigtime, subpkt_sigtime);
-		SubpacketEncode(2, false, subpkt_sigtime, out);
-		// [optional] signature expiration time (length = 4)
-		if (sigexptime != 0)
-		{
-			tmcg_openpgp_octets_t subpkt_sigexptime;
-			PacketTimeEncode(sigexptime, subpkt_sigexptime);
-			SubpacketEncode(3, false, subpkt_sigexptime, out);
-		}
-		// [optional] policy URI (variable length)
-		if (policy.length())
-		{
-			tmcg_openpgp_octets_t subpkt_policy;
-			for (size_t i = 0; i < policy.length(); i++)
-				subpkt_policy.push_back(policy[i]);
-			SubpacketEncode(26, false, subpkt_policy, out);
-		}
-		// 2. issuer fingerprint
-		tmcg_openpgp_octets_t subpkt_issuerfpr;
-		if (issuerfpr.size() == 20)
-			subpkt_issuerfpr.push_back(4); // key version number (V4)
-		else if (issuerfpr.size() == 32)
-			subpkt_issuerfpr.push_back(5); // key version number (V5)
-		else
-			subpkt_issuerfpr.push_back(0); // this indicates an error
-		subpkt_issuerfpr.insert(subpkt_issuerfpr.end(),
-			issuerfpr.begin(), issuerfpr.end());			
-		SubpacketEncode(33, false, subpkt_issuerfpr, out);
+	out.push_back((subpackets.size() >> 8) & 0xFF);
+	out.push_back(subpackets.size() & 0xFF);
+	out.insert(out.end(), subpackets.begin(), subpackets.end());
 }
 
 void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareRevocationSignature
@@ -7830,52 +8973,46 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareRevocationSignatu
 	 const std::string &reason, const tmcg_openpgp_octets_t &issuer, 
 	 tmcg_openpgp_octets_t &out)
 {
-	size_t subpkts = 3;
-	size_t subpktlen = (subpkts * 6) + 4 + 1 + reason.length();
+	// prepare the included subpackets
+	tmcg_openpgp_octets_t subpackets;
+	// 1. signature creation time (length = 4)
+	tmcg_openpgp_octets_t subpkt_sigtime;
+	PacketTimeEncode(sigtime, subpkt_sigtime);
+	SubpacketEncode(2, false, subpkt_sigtime, subpackets);
+	// 2. issuer (variable length)
 	if (issuer.size() == 20)
 	{
-		subpktlen += (6 + 21); // size of Issuer Fingerprint subpacket
-		subpktlen += 8; // size of Issuer subpacket
+		tmcg_openpgp_octets_t keyid;
+		// extract low-order 64 bits of the fingerprint
+		for (size_t i = 12; i < 20; i++)
+			keyid.push_back(issuer[i]);
+		SubpacketEncode(16, false, keyid, subpackets);
 	}
-	else
-		subpktlen += issuer.size();
+	else if (issuer.size() == 8)
+		SubpacketEncode(16, false, issuer, subpackets);
+	// 3. reason for revocation (length = 1 + variable length)
+	tmcg_openpgp_octets_t subpkt_reason;
+	subpkt_reason.push_back(revcode); // machine-readable code
+	for (size_t i = 0; i < reason.length(); i++)
+		subpkt_reason.push_back(reason[i]);
+	SubpacketEncode(29, false, subpkt_reason, subpackets);
+	// [optional] issuer fingerprint
+	if (issuer.size() == 20)
+	{
+		tmcg_openpgp_octets_t issuerfpr;
+		issuerfpr.push_back(4); // key version number (V4)
+		issuerfpr.insert(issuerfpr.end(), issuer.begin(), issuer.end());			
+		SubpacketEncode(33, false, issuerfpr, subpackets);
+	}
+	// create the signature packet
 	out.push_back(4); // V4 format
 	out.push_back(type); // type (e.g. 0x20/0x28 for key/subkey revocation)
 	out.push_back(pkalgo); // public-key algorithm
 	out.push_back(hashalgo); // hash algorithm
 	// hashed subpacket area
-	out.push_back((subpktlen >> 8) & 0xFF); // length hashed subpacket data
-	out.push_back(subpktlen & 0xFF);
-		// 1. signature creation time (length = 4)
-		tmcg_openpgp_octets_t subpkt_sigtime;
-		PacketTimeEncode(sigtime, subpkt_sigtime);
-		SubpacketEncode(2, false, subpkt_sigtime, out);
-		// 2. issuer (variable length)
-		if (issuer.size() == 20)
-		{
-			tmcg_openpgp_octets_t keyid;
-			// extract low-order 64 bits of the fingerprint
-			for (size_t i = 12; i < 20; i++)
-				keyid.push_back(issuer[i]);
-			SubpacketEncode(16, false, keyid, out);
-		}
-		else
-			SubpacketEncode(16, false, issuer, out);
-		// 3. reason for revocation (length = 1 + variable length)
-		tmcg_openpgp_octets_t subpkt_reason;
-		subpkt_reason.push_back(revcode); // machine-readable code
-		for (size_t i = 0; i < reason.length(); i++)
-			subpkt_reason.push_back(reason[i]);
-		SubpacketEncode(29, false, subpkt_reason, out);
-		// [optional] issuer fingerprint
-		if (issuer.size() == 20)
-		{
-			tmcg_openpgp_octets_t issuerfpr;
-			issuerfpr.push_back(4); // key version number (V4)
-			issuerfpr.insert(issuerfpr.end(),
-				issuer.begin(), issuer.end());			
-			SubpacketEncode(33, false, issuerfpr, out);
-		}
+	out.push_back((subpackets.size() >> 8) & 0xFF);
+	out.push_back(subpackets.size() & 0xFF);
+	out.insert(out.end(), subpackets.begin(), subpackets.end());
 }
 
 void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareCertificationSignature
@@ -7897,65 +9034,55 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareCertificationSign
 	 const std::string &policy, const tmcg_openpgp_octets_t &issuer, 
 	 tmcg_openpgp_octets_t &out)
 {
-	size_t subpkts = 2;
-	size_t subpktlen = (subpkts * 6) + 4;
+	// prepare the included subpackets
+	tmcg_openpgp_octets_t subpackets;
+	// 1. signature creation time (length = 4)
+	tmcg_openpgp_octets_t subpkt_sigtime;
+	PacketTimeEncode(sigtime, subpkt_sigtime);
+	SubpacketEncode(2, false, subpkt_sigtime, subpackets);
+	// [optional] signature expiration time (length = 4)
+	if (sigexptime != 0)
+	{
+		tmcg_openpgp_octets_t subpkt_sigexptime;
+		PacketTimeEncode(sigexptime, subpkt_sigexptime);
+		SubpacketEncode(3, false, subpkt_sigexptime, subpackets);
+	}
+	// 2. issuer (variable length)
 	if (issuer.size() == 20)
 	{
-		subpktlen += (6 + 21); // size of Issuer Fingerprint subpacket
-		subpktlen += 8; // size of Issuer subpacket
+		tmcg_openpgp_octets_t keyid;
+		// extract low-order 64 bits of the fingerprint
+		for (size_t i = 12; i < 20; i++)
+			keyid.push_back(issuer[i]);
+		SubpacketEncode(16, false, keyid, subpackets);
 	}
-	else
-		subpktlen += issuer.size();
-	if (sigexptime != 0)
-		subpktlen += (6 + 4);
+	else if (issuer.size() == 8)
+		SubpacketEncode(16, false, issuer, subpackets);
+	// [optional] policy URI (variable length)
 	if (policy.length())
-		subpktlen += (6 + policy.length());
+	{
+		tmcg_openpgp_octets_t subpkt_policy;
+		for (size_t i = 0; i < policy.length(); i++)
+			subpkt_policy.push_back(policy[i]);
+		SubpacketEncode(26, false, subpkt_policy, subpackets);
+	}
+	// [optional] issuer fingerprint
+	if (issuer.size() == 20)
+	{
+		tmcg_openpgp_octets_t issuerfpr;
+		issuerfpr.push_back(4); // key version number (V4)
+		issuerfpr.insert(issuerfpr.end(), issuer.begin(), issuer.end());			
+		SubpacketEncode(33, false, issuerfpr, subpackets);
+	}
+	// create the signature packet
 	out.push_back(4); // V4 format
 	out.push_back(type); // type (e.g. 0x10 for user ID certification)
 	out.push_back(pkalgo); // public-key algorithm
 	out.push_back(hashalgo); // hash algorithm
 	// hashed subpacket area
-	out.push_back((subpktlen >> 8) & 0xFF); // length hashed subpacket data
-	out.push_back(subpktlen & 0xFF);
-		// 1. signature creation time (length = 4)
-		tmcg_openpgp_octets_t subpkt_sigtime;
-		PacketTimeEncode(sigtime, subpkt_sigtime);
-		SubpacketEncode(2, false, subpkt_sigtime, out);
-		// [optional] signature expiration time (length = 4)
-		if (sigexptime != 0)
-		{
-			tmcg_openpgp_octets_t subpkt_sigexptime;
-			PacketTimeEncode(sigexptime, subpkt_sigexptime);
-			SubpacketEncode(3, false, subpkt_sigexptime, out);
-		}
-		// 2. issuer (variable length)
-		if (issuer.size() == 20)
-		{
-			tmcg_openpgp_octets_t keyid;
-			// extract low-order 64 bits of the fingerprint
-			for (size_t i = 12; i < 20; i++)
-				keyid.push_back(issuer[i]);
-			SubpacketEncode(16, false, keyid, out);
-		}
-		else
-			SubpacketEncode(16, false, issuer, out);
-		// [optional] policy URI (variable length)
-		if (policy.length())
-		{
-			tmcg_openpgp_octets_t subpkt_policy;
-			for (size_t i = 0; i < policy.length(); i++)
-				subpkt_policy.push_back(policy[i]);
-			SubpacketEncode(26, false, subpkt_policy, out);
-		}
-		// [optional] issuer fingerprint
-		if (issuer.size() == 20)
-		{
-			tmcg_openpgp_octets_t issuerfpr;
-			issuerfpr.push_back(4); // key version number (V4)
-			issuerfpr.insert(issuerfpr.end(),
-				issuer.begin(), issuer.end());			
-			SubpacketEncode(33, false, issuerfpr, out);
-		}
+	out.push_back((subpackets.size() >> 8) & 0xFF);
+	out.push_back(subpackets.size() & 0xFF);
+	out.insert(out.end(), subpackets.begin(), subpackets.end());
 }
 
 void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareTimestampSignature
@@ -7969,88 +9096,76 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareTimestampSignatur
 	 const tmcg_openpgp_notations_t &notations,
 	 tmcg_openpgp_octets_t &out)
 {
-	size_t subpkts = 4;
-	size_t subpktlen = (subpkts * 6) + 4 + 1 + 2 + target_hash.size();
+	// prepare the included subpackets
+	tmcg_openpgp_octets_t subpackets;
+	// 1. signature creation time (length = 4)
+	tmcg_openpgp_octets_t subpkt_sigtime;
+	PacketTimeEncode(sigtime, subpkt_sigtime);
+	SubpacketEncode(2, true, subpkt_sigtime, subpackets);
+	// 2. revocable (length = 1)
+	tmcg_openpgp_octets_t revocable;
+	revocable.push_back(0x00); // not revocable
+	SubpacketEncode(7, true, revocable, subpackets);
+	// 3. issuer (variable length)
 	if (issuer.size() == 20)
 	{
-		subpktlen += (6 + 21); // size of Issuer Fingerprint subpacket
-		subpktlen += 8; // size of Issuer subpacket
+		tmcg_openpgp_octets_t keyid;
+		// extract low-order 64 bits of the fingerprint
+		for (size_t i = 12; i < 20; i++)
+			keyid.push_back(issuer[i]);
+		SubpacketEncode(16, true, keyid, subpackets);
 	}
-	else
-		subpktlen += issuer.size();
-	if (policy.length())
-		subpktlen += (6 + policy.length());
+	else if (issuer.size() == 8)
+		SubpacketEncode(16, true, issuer, subpackets);
+	// [optional] notation data (variable length)
 	for (size_t i = 0; i < notations.size(); i++)
-		subpktlen += (6 + 8 + notations[i].first.size() +
-			notations[i].second.size());	
+	{
+		tmcg_openpgp_octets_t subpkt_notation;
+		subpkt_notation.push_back(0x80); // human-readable
+		subpkt_notation.push_back(0x00);
+		subpkt_notation.push_back(0x00);
+		subpkt_notation.push_back(0x00);
+		subpkt_notation.push_back((notations[i].first.size() >> 8) & 0xFF);
+		subpkt_notation.push_back(notations[i].first.size() & 0xFF);
+		subpkt_notation.push_back((notations[i].second.size() >> 8) & 0xFF);
+		subpkt_notation.push_back(notations[i].second.size() & 0xFF);
+		for (size_t j = 0; j < notations[i].first.size(); j++)
+			subpkt_notation.push_back(notations[i].first[j]);
+		for (size_t j = 0; j < notations[i].second.size(); j++)
+			subpkt_notation.push_back(notations[i].second[j]);
+		SubpacketEncode(20, false, subpkt_notation, subpackets);
+	}
+	// [optional] policy URI (variable length)
+	if (policy.length())
+	{
+		tmcg_openpgp_octets_t subpkt_policy;
+		for (size_t i = 0; i < policy.length(); i++)
+			subpkt_policy.push_back(policy[i]);
+		SubpacketEncode(26, false, subpkt_policy, subpackets);
+	}
+	// 4. signature target (variable length)
+	tmcg_openpgp_octets_t target;
+	target.push_back(target_pkalgo); // public-key algorithm
+	target.push_back(target_hashalgo); // hash algorithm
+	target.insert(target.end(),	target_hash.begin(), target_hash.end()); // hash
+	SubpacketEncode(31, true, target, subpackets);
+	// [optional] issuer fingerprint
+	if (issuer.size() == 20)
+	{
+		tmcg_openpgp_octets_t issuerfpr;
+		issuerfpr.push_back(4); // key version number (V4)
+		issuerfpr.insert(issuerfpr.end(), issuer.begin(), issuer.end());			
+		SubpacketEncode(33, false, issuerfpr, subpackets);
+	}
+	// create the signature packet
 	out.push_back(4); // V4 format
 	out.push_back(TMCG_OPENPGP_SIGNATURE_TIMESTAMP); // type
 	out.push_back(pkalgo); // public-key algorithm
 	out.push_back(hashalgo); // hash algorithm
 	// hashed subpacket area
-	out.push_back((subpktlen >> 8) & 0xFF); // length hashed subpacket data
-	out.push_back(subpktlen & 0xFF);
-		// 1. signature creation time (length = 4)
-		tmcg_openpgp_octets_t subpkt_sigtime;
-		PacketTimeEncode(sigtime, subpkt_sigtime);
-		SubpacketEncode(2, true, subpkt_sigtime, out);
-		// 2. revocable (length = 1)
-		tmcg_openpgp_octets_t revocable;
-		revocable.push_back(0x00); // not revocable
-		SubpacketEncode(7, true, revocable, out); 
-		// 3. issuer (variable length)
-		if (issuer.size() == 20)
-		{
-			tmcg_openpgp_octets_t keyid;
-			// extract low-order 64 bits of the fingerprint
-			for (size_t i = 12; i < 20; i++)
-				keyid.push_back(issuer[i]);
-			SubpacketEncode(16, true, keyid, out);
-		}
-		else
-			SubpacketEncode(16, true, issuer, out);
-		// [optional] notation data (variable length)
-		for (size_t i = 0; i < notations.size(); i++)
-		{
-			tmcg_openpgp_octets_t subpkt_notation;
-			subpkt_notation.push_back(0x80); // human-readable
-			subpkt_notation.push_back(0x00);
-			subpkt_notation.push_back(0x00);
-			subpkt_notation.push_back(0x00);
-			subpkt_notation.push_back((notations[i].first.size() >> 8) & 0xFF);
-			subpkt_notation.push_back(notations[i].first.size() & 0xFF);
-			subpkt_notation.push_back((notations[i].second.size() >> 8) & 0xFF);
-			subpkt_notation.push_back(notations[i].second.size() & 0xFF);
-			for (size_t j = 0; j < notations[i].first.size(); j++)
-				subpkt_notation.push_back(notations[i].first[j]);
-			for (size_t j = 0; j < notations[i].second.size(); j++)
-				subpkt_notation.push_back(notations[i].second[j]);
-			SubpacketEncode(20, false, subpkt_notation, out);
-		}
-		// [optional] policy URI (variable length)
-		if (policy.length())
-		{
-			tmcg_openpgp_octets_t subpkt_policy;
-			for (size_t i = 0; i < policy.length(); i++)
-				subpkt_policy.push_back(policy[i]);
-			SubpacketEncode(26, false, subpkt_policy, out);
-		}
-		// 4. signature target (variable length)
-		tmcg_openpgp_octets_t target;
-		target.push_back(target_pkalgo); // public-key algorithm
-		target.push_back(target_hashalgo); // hash algorithm
-		target.insert(target.end(),
-			target_hash.begin(), target_hash.end()); // hash
-		SubpacketEncode(31, true, target, out);
-		// [optional] issuer fingerprint
-		if (issuer.size() == 20)
-		{
-			tmcg_openpgp_octets_t issuerfpr;
-			issuerfpr.push_back(4); // key version number (V4)
-			issuerfpr.insert(issuerfpr.end(),
-				issuer.begin(), issuer.end());			
-			SubpacketEncode(33, false, issuerfpr, out);
-		}
+	out.push_back((subpackets.size() >> 8) & 0xFF);
+	out.push_back(subpackets.size() & 0xFF);
+	out.insert(out.end(), subpackets.begin(), subpackets.end());
 }
 
 void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareTimestampSignature
@@ -8062,83 +9177,145 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareTimestampSignatur
 	 const tmcg_openpgp_notations_t &notations,
 	 tmcg_openpgp_octets_t &out)
 {
-	size_t subpkts = 4;
-	size_t subpktlen = (subpkts * 6) + 4 + 1 + target_signature.size();
+	// prepare the included subpackets
+	tmcg_openpgp_octets_t subpackets;
+	// 1. signature creation time (length = 4)
+	tmcg_openpgp_octets_t subpkt_sigtime;
+	PacketTimeEncode(sigtime, subpkt_sigtime);
+	SubpacketEncode(2, true, subpkt_sigtime, subpackets);
+	// 2. revocable (length = 1)
+	tmcg_openpgp_octets_t revocable;
+	revocable.push_back(0x00); // not revocable
+	SubpacketEncode(7, true, revocable, subpackets);
+	// 3. issuer (variable length)
 	if (issuer.size() == 20)
 	{
-		subpktlen += (6 + 21); // size of Issuer Fingerprint subpacket
-		subpktlen += 8; // size of Issuer subpacket
+		tmcg_openpgp_octets_t keyid;
+		// extract low-order 64 bits of the fingerprint
+		for (size_t i = 12; i < 20; i++)
+			keyid.push_back(issuer[i]);
+		SubpacketEncode(16, true, keyid, subpackets);
 	}
-	else
-		subpktlen += issuer.size();
-	if (policy.length())
-		subpktlen += (6 + policy.length());
+	else if (issuer.size() == 8)
+		SubpacketEncode(16, true, issuer, subpackets);
+	// [optional] notation data (variable length)
 	for (size_t i = 0; i < notations.size(); i++)
-		subpktlen += (6 + 8 + notations[i].first.size() +
-			notations[i].second.size());	
+	{
+		tmcg_openpgp_octets_t subpkt_notation;
+		subpkt_notation.push_back(0x80); // human-readable
+		subpkt_notation.push_back(0x00);
+		subpkt_notation.push_back(0x00);
+		subpkt_notation.push_back(0x00);
+		subpkt_notation.push_back((notations[i].first.size() >> 8) & 0xFF);
+		subpkt_notation.push_back(notations[i].first.size() & 0xFF);
+		subpkt_notation.push_back((notations[i].second.size() >> 8) & 0xFF);
+		subpkt_notation.push_back(notations[i].second.size() & 0xFF);
+		for (size_t j = 0; j < notations[i].first.size(); j++)
+			subpkt_notation.push_back(notations[i].first[j]);
+		for (size_t j = 0; j < notations[i].second.size(); j++)
+			subpkt_notation.push_back(notations[i].second[j]);
+		SubpacketEncode(20, false, subpkt_notation, subpackets);
+	}
+	// [optional] policy URI (variable length)
+	if (policy.length())
+	{
+		tmcg_openpgp_octets_t subpkt_policy;
+		for (size_t i = 0; i < policy.length(); i++)
+			subpkt_policy.push_back(policy[i]);
+		SubpacketEncode(26, false, subpkt_policy, subpackets);
+	}
+	// 4. embedded signature (variable length)
+	SubpacketEncode(32, true, target_signature, subpackets);
+	// [optional] issuer fingerprint
+	if (issuer.size() == 20)
+	{
+		tmcg_openpgp_octets_t issuerfpr;
+		issuerfpr.push_back(4); // key version number (V4)
+		issuerfpr.insert(issuerfpr.end(), issuer.begin(), issuer.end());			
+		SubpacketEncode(33, false, issuerfpr, subpackets);
+	}
+	// create the signature packet
 	out.push_back(4); // V4 format
 	out.push_back(TMCG_OPENPGP_SIGNATURE_TIMESTAMP); // type
 	out.push_back(pkalgo); // public-key algorithm
 	out.push_back(hashalgo); // hash algorithm
 	// hashed subpacket area
-	out.push_back((subpktlen >> 8) & 0xFF); // length hashed subpacket data
-	out.push_back(subpktlen & 0xFF);
-		// 1. signature creation time (length = 4)
-		tmcg_openpgp_octets_t subpkt_sigtime;
-		PacketTimeEncode(sigtime, subpkt_sigtime);
-		SubpacketEncode(2, true, subpkt_sigtime, out);
-		// 2. revocable (length = 1)
-		tmcg_openpgp_octets_t revocable;
-		revocable.push_back(0x00); // not revocable
-		SubpacketEncode(7, true, revocable, out); 
-		// 3. issuer (variable length)
-		if (issuer.size() == 20)
-		{
-			tmcg_openpgp_octets_t keyid;
-			// extract low-order 64 bits of the fingerprint
-			for (size_t i = 12; i < 20; i++)
-				keyid.push_back(issuer[i]);
-			SubpacketEncode(16, true, keyid, out);
-		}
-		else
-			SubpacketEncode(16, true, issuer, out);
-		// [optional] notation data (variable length)
-		for (size_t i = 0; i < notations.size(); i++)
-		{
-			tmcg_openpgp_octets_t subpkt_notation;
-			subpkt_notation.push_back(0x80); // human-readable
-			subpkt_notation.push_back(0x00);
-			subpkt_notation.push_back(0x00);
-			subpkt_notation.push_back(0x00);
-			subpkt_notation.push_back((notations[i].first.size() >> 8) & 0xFF);
-			subpkt_notation.push_back(notations[i].first.size() & 0xFF);
-			subpkt_notation.push_back((notations[i].second.size() >> 8) & 0xFF);
-			subpkt_notation.push_back(notations[i].second.size() & 0xFF);
-			for (size_t j = 0; j < notations[i].first.size(); j++)
-				subpkt_notation.push_back(notations[i].first[j]);
-			for (size_t j = 0; j < notations[i].second.size(); j++)
-				subpkt_notation.push_back(notations[i].second[j]);
-			SubpacketEncode(20, false, subpkt_notation, out);
-		}
-		// [optional] policy URI (variable length)
-		if (policy.length())
-		{
-			tmcg_openpgp_octets_t subpkt_policy;
-			for (size_t i = 0; i < policy.length(); i++)
-				subpkt_policy.push_back(policy[i]);
-			SubpacketEncode(26, false, subpkt_policy, out);
-		}
-		// 4. embedded signature (variable length)
-		SubpacketEncode(32, true, target_signature, out);
-		// [optional] issuer fingerprint
-		if (issuer.size() == 20)
-		{
-			tmcg_openpgp_octets_t issuerfpr;
-			issuerfpr.push_back(4); // key version number (V4)
-			issuerfpr.insert(issuerfpr.end(),
-				issuer.begin(), issuer.end());			
-			SubpacketEncode(33, false, issuerfpr, out);
-		}
+	out.push_back((subpackets.size() >> 8) & 0xFF);
+	out.push_back(subpackets.size() & 0xFF);
+	out.insert(out.end(), subpackets.begin(), subpackets.end());
+}
+
+void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSigPrepareAttestationSignature
+	(const tmcg_openpgp_pkalgo_t pkalgo,
+	 const tmcg_openpgp_hashalgo_t hashalgo, const time_t sigtime,
+	 const std::string &policy,
+	 const tmcg_openpgp_octets_t &issuer,
+	 const tmcg_openpgp_octets_t &attested_certs,
+	 const tmcg_openpgp_notations_t &notations,
+	 tmcg_openpgp_octets_t &out)
+{
+	// prepare the included subpackets
+	tmcg_openpgp_octets_t subpackets;
+	// 1. signature creation time (length = 4)
+	tmcg_openpgp_octets_t subpkt_sigtime;
+	PacketTimeEncode(sigtime, subpkt_sigtime);
+	SubpacketEncode(2, true, subpkt_sigtime, subpackets);
+	// 2. issuer (variable length)
+	if (issuer.size() == 20)
+	{
+		tmcg_openpgp_octets_t keyid;
+		// extract low-order 64 bits of the fingerprint
+		for (size_t i = 12; i < 20; i++)
+			keyid.push_back(issuer[i]);
+		SubpacketEncode(16, true, keyid, subpackets);
+	}
+	else if (issuer.size() == 8)
+		SubpacketEncode(16, true, issuer, subpackets);
+	// [optional] notation data (variable length)
+	for (size_t i = 0; i < notations.size(); i++)
+	{
+		tmcg_openpgp_octets_t subpkt_notation;
+		subpkt_notation.push_back(0x80); // human-readable
+		subpkt_notation.push_back(0x00);
+		subpkt_notation.push_back(0x00);
+		subpkt_notation.push_back(0x00);
+		subpkt_notation.push_back((notations[i].first.size() >> 8) & 0xFF);
+		subpkt_notation.push_back(notations[i].first.size() & 0xFF);
+		subpkt_notation.push_back((notations[i].second.size() >> 8) & 0xFF);
+		subpkt_notation.push_back(notations[i].second.size() & 0xFF);
+		for (size_t j = 0; j < notations[i].first.size(); j++)
+			subpkt_notation.push_back(notations[i].first[j]);
+		for (size_t j = 0; j < notations[i].second.size(); j++)
+			subpkt_notation.push_back(notations[i].second[j]);
+		SubpacketEncode(20, false, subpkt_notation, subpackets);
+	}
+	// [optional] policy URI (variable length)
+	if (policy.length())
+	{
+		tmcg_openpgp_octets_t subpkt_policy;
+		for (size_t i = 0; i < policy.length(); i++)
+			subpkt_policy.push_back(policy[i]);
+		SubpacketEncode(26, false, subpkt_policy, subpackets);
+	}
+	// [optional] issuer fingerprint
+	if (issuer.size() == 20)
+	{
+		tmcg_openpgp_octets_t issuerfpr;
+		issuerfpr.push_back(4); // key version number (V4)
+		issuerfpr.insert(issuerfpr.end(), issuer.begin(), issuer.end());			
+		SubpacketEncode(33, false, issuerfpr, subpackets);
+	}
+	// 3. Attested Certifications (variable length)
+	SubpacketEncode(37, true, attested_certs, subpackets);
+	// create the signature packet
+	out.push_back(4); // V4 format
+	out.push_back(TMCG_OPENPGP_SIGNATURE_ATTESTATION); // type
+	out.push_back(pkalgo); // public-key algorithm
+	out.push_back(hashalgo); // hash algorithm
+	// hashed subpacket area
+	out.push_back((subpackets.size() >> 8) & 0xFF);
+	out.push_back(subpackets.size() & 0xFF);
+	out.insert(out.end(), subpackets.begin(), subpackets.end());
 }
 
 void CallasDonnerhackeFinneyShawThayerRFC4880::PacketPubEncode
@@ -8434,7 +9611,7 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSecEncode
 	if (passphrase.length() == 0)
 		len += 1+2+xlen+2; // S2K usage is zero
 	else
-		len += 29+2+xlen+20; // S2K usage is 254
+		len += 29+2+xlen+20; // fixed S2K usage is 254
 
 	// The Secret-Key and Secret-Subkey packets contain all the data of the
 	// Public-Key and Public-Subkey packets, with additional algorithm-
@@ -8618,7 +9795,11 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSecEncodeExperimental108
 		len += 2+((gcry_mpi_get_nbits(qual[j]) + 7) / 8);
 	assert((qual.size() == capl.size()));
 	for (size_t j = 0; j < capl.size(); j++)
-		len += 5+capl[j].length();
+	{
+		tmcg_openpgp_octets_t length;
+		PacketLengthEncode(capl[j].length(), length);
+		len += length.size()+capl[j].length();
+	}
 	for (size_t j = 0; j < tmcg_get_gcry_mpi_ui(n); j++)
 	{
 		for (size_t k = 0; k <= tmcg_get_gcry_mpi_ui(t); k++)
@@ -8629,7 +9810,7 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSecEncodeExperimental108
 	if (passphrase.length() == 0)
 		len += 1+2+x_ilen+2+xprime_ilen+2; // S2K usage is zero
 	else
-		len += 29+2+x_ilen+2+xprime_ilen+20; // S2K usage is 254
+		len += 29+2+x_ilen+2+xprime_ilen+20; // fixed S2K usage is 254
 	PacketTagEncode(5, out);
 	PacketLengthEncode(len, out);
 	out.push_back(4); // V4 format
@@ -8774,7 +9955,11 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketSecEncodeExperimental107
 	assert((qual.size() <= capl.size()));
 	assert((x_rvss_qual.size() <= capl.size()));
 	for (size_t j = 0; j < capl.size(); j++)
-		len += 5+capl[j].length();
+	{
+		tmcg_openpgp_octets_t length;
+		PacketLengthEncode(capl[j].length(), length);
+		len += length.size()+capl[j].length();
+	}
 	for (size_t j = 0; j < tmcg_get_gcry_mpi_ui(n); j++)
 	{
 		for (size_t k = 0; k <= tmcg_get_gcry_mpi_ui(t); k++)
@@ -9927,30 +11112,47 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::SubpacketDecode
 				out.signaturetarget_hash[i] = pkt[2+i];
 			break;
 		case 32: // Embedded Signature
-			if (out.embeddedsignaturelen != 0)
+			if (out.embeddedsignaturelen > 0)
 			{
 				if (verbose)
-					std::cerr << "WARNING: more than one embedded signature" <<
-						" found; only the last one is recognized" << std::endl;
+				{
+					std::cerr << "WARNING: more than one embedded signature " <<
+						"found; only the last one is recognized" << std::endl;
+				}
 				delete [] out.embeddedsignature;
+				tmcg_openpgp_mem_alloc -= out.embeddedsignaturelen;
+				out.embeddedsignaturelen = 0;
 			}
 			out.embeddedsignaturelen = pkt.size();
 			if (verbose > 2)
+			{
 				std::cerr << "INFO: embeddedsignaturelen = " <<
 					out.embeddedsignaturelen << std::endl;
-			tmcg_openpgp_mem_alloc += out.embeddedsignaturelen;
-			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-			{
-				tmcg_openpgp_mem_alloc -= out.embeddedsignaturelen;
-				out.embeddedsignaturelen = 0;
-				return 0; // error: memory limit exceeded
 			}
-			out.embeddedsignature =
-				new tmcg_openpgp_byte_t[out.embeddedsignaturelen];	
-			for (size_t i = 0; i < pkt.size(); i++)
-				out.embeddedsignature[i] = pkt[i];
+			if (out.embeddedsignaturelen > 0)
+			{
+				tmcg_openpgp_mem_alloc += out.embeddedsignaturelen;
+				if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+				{
+					tmcg_openpgp_mem_alloc -= out.embeddedsignaturelen;
+					out.embeddedsignaturelen = 0;
+					return 0; // error: memory limit exceeded
+				}
+				out.embeddedsignature =
+					new tmcg_openpgp_byte_t[out.embeddedsignaturelen];	
+				for (size_t i = 0; i < pkt.size(); i++)
+					out.embeddedsignature[i] = pkt[i];
+			}
 			break;
 		case 33: // Issuer Fingerprint [draft RFC 4880bis]
+			if (out.issuerkeyversion > 0)
+			{
+				if (verbose)
+				{
+					std::cerr << "WARNING: more than one issuer fingerprint " <<
+						"found; only the last one is recognized" << std::endl;
+				}
+			}
 			if (pkt.size() < 2)
 				return 0; // error: too short subpacket body
 			out.issuerkeyversion = pkt[0];
@@ -9980,6 +11182,65 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::SubpacketDecode
 			for (size_t i = 0; i < pkt.size(); i++)
 				out.paa[i] = pkt[i];
 			break;
+		case 35: // Intended Recipient Fingerprint [draft RFC 4880bis]
+			// cf. https://gitlab.com/openpgp-wg/rfc4880bis/merge_requests/19
+			if (pkt.size() < 2)
+				return 0; // error: too short subpacket body
+			out.recipientkeyversion = pkt[0];
+			switch (out.recipientkeyversion)
+			{
+				case 4:
+					if (pkt.size() != 21)
+						return 0; // error: incorrect subpacket body
+					for (size_t i = 0; i < 20; i++)
+						out.recipientfingerprint[i] = pkt[1+i];
+					break;
+				case 5:
+					if (pkt.size() != 33)
+						return 0; // error: incorrect subpacket body
+					for (size_t i = 0; i < 32; i++)
+						out.recipientfingerprint[i] = pkt[1+i];
+					break;
+				default:
+					type = 0xFE; // subpacket not recognized
+					break;
+			}
+			break;
+		case 37: // Attested Certifications [draft RFC 4880bis]
+			// cf. https://gitlab.com/openpgp-wg/rfc4880bis/merge_requests/20
+			if (out.attestedcertificationslen > 0)
+			{
+				if (verbose)
+				{
+					std::cerr << "WARNING: more than one subpacket with " <<
+						"attested certifications found; only the last one " <<
+						"is recognized" << std::endl;
+				}
+				delete [] out.attestedcertifications;
+				tmcg_openpgp_mem_alloc -= out.attestedcertificationslen;
+				out.attestedcertificationslen = 0;
+			}
+			out.attestedcertificationslen = pkt.size();
+			if (verbose > 2)
+			{
+				std::cerr << "INFO: attestedcertificationslen = " <<
+					out.attestedcertificationslen << std::endl;
+			}
+			if (out.attestedcertificationslen > 0)
+			{
+				tmcg_openpgp_mem_alloc += out.attestedcertificationslen;
+				if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+				{
+					tmcg_openpgp_mem_alloc -= out.attestedcertificationslen;
+					out.attestedcertifications = 0;
+					return 0; // error: memory limit exceeded
+				}
+				out.attestedcertifications =
+					new tmcg_openpgp_byte_t[out.attestedcertificationslen];	
+				for (size_t i = 0; i < pkt.size(); i++)
+					out.attestedcertifications[i] = pkt[i];
+			}
+			break;
 		case 100: // Private or experimental -- not implemented; ignore
 		case 101:
 		case 102:
@@ -10003,7 +11264,10 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::SubpacketDecode
 
 tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::SubpacketParse
 	(tmcg_openpgp_octets_t &in, const int verbose,
-	 tmcg_openpgp_packet_ctx_t &out, tmcg_openpgp_notations_t &notations)
+	 tmcg_openpgp_packet_ctx_t &out,
+	 tmcg_openpgp_notations_t &notations,
+	 tmcg_openpgp_multiple_octets_t &embeddedsigs,
+	 tmcg_openpgp_multiple_octets_t &recipientfprs)
 {
 	tmcg_openpgp_byte_t tag = 0x02; // signature subpackets only
 	while (in.size())
@@ -10029,7 +11293,7 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::SubpacketParse
 				tag = 0xFA;
 			else
 				tag = 0xFB;
-			if (verbose > 2)
+			if (verbose)
 			{
 				std::cerr << "WARNING: unrecognized ";
 				if (out.critical)
@@ -10044,7 +11308,7 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::SubpacketParse
 				std::cerr << "INFO: signature subpacket type = " <<
 					(int)sptype << " found" << std::endl;
 			}
-			if (out.notation_name_length != 0)
+			if ((sptype == 20) && (out.notation_name_length > 0))
 			{
 				tmcg_openpgp_notation_t notation;
 				for (size_t i = 0; i < out.notation_name_length; i++)
@@ -10052,9 +11316,47 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::SubpacketParse
 				for (size_t i = 0; i < out.notation_value_length; i++)
 					notation.second.push_back(out.notation_value[i]);
 				notations.push_back(notation);
+				if (out.critical)
+				{
+					tag = 0xFA;
+					if (verbose)
+					{
+						std::cerr << "WARNING: unrecognized critical " <<
+							"notation data found" << std::endl;
+					}
+				}
+				else if (verbose > 2)
+					std::cerr << "INFO: notation data found" << std::endl;
+			}
+			if ((sptype == 32) && (out.embeddedsignaturelen > 0))
+			{
+				tmcg_openpgp_octets_t sig;
+				for (size_t i = 0; i < out.embeddedsignaturelen; i++)
+					sig.push_back(out.embeddedsignature[i]);
+				embeddedsigs.push_back(sig);
 				if (verbose > 2)
-					std::cerr << "INFO: notation data found" <<
-						std::endl;
+					std::cerr << "INFO: embedded signature found" << std::endl;
+			}
+			if ((sptype == 35) && (out.recipientkeyversion > 0))
+			{
+				tmcg_openpgp_octets_t fpr;
+				switch (out.recipientkeyversion)
+				{
+					case 4: // V4 keys use SHA-1
+						for (size_t i = 0; i < 20; i++)
+							fpr.push_back(out.recipientfingerprint[i]);
+						break;
+					case 5: // V5 keys use SHA256
+						for (size_t i = 0; i < 32; i++)
+							fpr.push_back(out.recipientfingerprint[i]);
+						break;
+				}
+				recipientfprs.push_back(fpr);
+				if (verbose > 2)
+				{
+					std::cerr << "INFO: recipient fingerprint v" <<
+						(int)out.recipientkeyversion << " found" << std::endl;
+				}
 			}
 		}
 	}
@@ -10069,7 +11371,7 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketContextEvaluate
 	for (size_t i = 0; i < sizeof(out.issuer); i++)
 	{
 		if (out.issuer[i] != 0)
-			copy = false;
+			copy = false; // don't copy, if anything present
 	}
 	for (size_t i = 0; (copy && (i < sizeof(out.issuer))); i++)
 		out.issuer[i] = in.issuer[i];
@@ -10087,7 +11389,7 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketContextEvaluate
 	for (size_t i = 0; i < sizeof(out.issuerfingerprint); i++)
 	{
 		if (out.issuerfingerprint[i])
-			copy = false;
+			copy = false; // don't copy, if anything present
 	}
 	if (copy)
 	{
@@ -10098,7 +11400,8 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketContextEvaluate
 }
 
 tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketBodyExtract
-	(const tmcg_openpgp_octets_t &in, const int verbose,
+	(const tmcg_openpgp_octets_t &in,
+	 const int verbose,
 	 tmcg_openpgp_octets_t &out)
 {
 	bool newformat;
@@ -10119,7 +11422,7 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketBodyExtract
 		return 0; // error: no first octet of packet header
 	tmcg_openpgp_byte_t tag = work[0];
 	tmcg_openpgp_byte_t lentype = 0x00;
-	work.erase(work.begin(), work.begin()+1); // remove first octet
+	work.erase(work.begin()); // remove first octet
 	if ((tag & 0x80) != 0x80)
 		return 0; // error: Bit 7 of first octet not set
 	if ((tag & 0x40) == 0x40)
@@ -10174,6 +11477,1302 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketBodyExtract
 	return tag;
 }
 
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag1
+	(const tmcg_openpgp_octets_t &pkt,
+	 tmcg_openpgp_packet_ctx_t &out)
+{
+	tmcg_openpgp_octets_t mpis;
+	size_t mlen = 0;
+	if (pkt.size() < 16)
+		return 0; // error: incorrect packet body
+	out.version = pkt[0];
+	if (out.version != 3)
+		return 0xFE; // warning: version not supported
+	for (size_t i = 0; i < 8; i++)
+		out.keyid[i] = pkt[1+i];
+	out.pkalgo = (tmcg_openpgp_pkalgo_t)pkt[9];
+	mpis.insert(mpis.end(), pkt.begin()+10, pkt.end());
+	if ((out.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
+	    (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_ENCRYPT_ONLY))
+	{
+		// Algorithm-Specific Fields for RSA
+		if (mpis.size() <= 2)
+			return 0; // error: too few mpis
+		mlen = PacketMPIDecode(mpis, out.me);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+	}
+	else if (out.pkalgo == TMCG_OPENPGP_PKALGO_ELGAMAL)
+	{
+		// Algorithm-Specific Fields for Elgamal
+		if (mpis.size() <= 2)
+			return 0; // error: too few mpis
+		mlen = PacketMPIDecode(mpis, out.gk);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		if (mpis.size() <= 2)
+			return 0; // error: too few mpis
+		mlen = PacketMPIDecode(mpis, out.myk);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+	}
+	else if (out.pkalgo == TMCG_OPENPGP_PKALGO_ECDH)
+	{
+		// Algorithm-Specific Fields for ECDH keys [RFC 6637]
+		if (mpis.size() <= 2)
+			return 0; // error: too few mpis
+		mlen = PacketMPIDecode(mpis, out.ecepk);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		// a one-octet size, followed by a symmetric key encoded
+		// using the method described in Section 8 [RFC 6637]
+		if (mpis.size() <= 2)
+			return 0; // error: result of key wrapping too short
+		out.rkwlen = mpis[0];
+		if ((out.rkwlen == 0) || (out.rkwlen == 255))
+			return 0; // error: bad result of key wrapping
+		if (mpis.size() < (out.rkwlen + 1))
+			return 0; // error: result of key wrapping too short
+		for (size_t i = 0; i < out.rkwlen; i++)
+			out.rkw[i] = mpis[1+i];
+	}
+	else
+		return 0xFE; // warning: unsupported algorithm
+	return 1;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag2
+	(const tmcg_openpgp_octets_t &pkt,
+	 const int verbose,
+	 tmcg_openpgp_packet_ctx_t &out,
+	 tmcg_openpgp_notations_t &notations,
+	 tmcg_openpgp_multiple_octets_t &embeddedsigs,
+	 tmcg_openpgp_multiple_octets_t &recipientfprs)
+{
+	tmcg_openpgp_octets_t mpis;
+	size_t mlen = 0;
+	if (pkt.size() < 1)
+		return 0; // error: incorrect packet body
+	out.version = pkt[0];
+	if (out.version == 3)
+	{
+		if (pkt.size() < 22)
+			return 0; // error: packet too short
+		if (pkt[1] != 5)
+			return 0; // error: incorrect length
+		out.type = (tmcg_openpgp_signature_t)pkt[2];
+		out.sigcreationtime = (pkt[3] << 24) + (pkt[4] << 16) +
+			(pkt[5] << 8) + pkt[6];
+		for (size_t i = 0; i < 8; i++)
+			out.issuer[i] = pkt[7+i];
+		out.pkalgo = (tmcg_openpgp_pkalgo_t)pkt[15];
+		out.hashalgo = (tmcg_openpgp_hashalgo_t)pkt[16];
+		// left 16 bits of signed hash value
+		for (size_t i = 0; i < 2; i++)
+			out.left[i] = pkt[17+i];
+		mpis.insert(mpis.end(), pkt.begin()+19, pkt.end());
+	}
+	else if ((out.version == 4) || (out.version == 5))
+	{
+		if (pkt.size() < 12)
+			return 0; // error: packet too short
+		out.type = (tmcg_openpgp_signature_t)pkt[1];
+		out.pkalgo = (tmcg_openpgp_pkalgo_t)pkt[2];
+		out.hashalgo = (tmcg_openpgp_hashalgo_t)pkt[3];
+		uint32_t hspdlen = (pkt[4] << 8) + pkt[5];
+		if (pkt.size() < (6 + hspdlen))
+			return 0; // error: packet too short
+		tmcg_openpgp_byte_t tag = 0x00;
+		tmcg_openpgp_octets_t hspd, uspd;
+		hspd.insert(hspd.end(), pkt.begin()+6, pkt.begin()+6+hspdlen);
+		out.hspdlen = hspdlen;
+		if (out.hspdlen > 0)
+		{
+			tmcg_openpgp_mem_alloc += out.hspdlen;
+			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+			{
+				tmcg_openpgp_mem_alloc -= out.hspdlen;
+				return 0; // error: memory limit exceeded
+			}
+			out.hspd = new tmcg_openpgp_byte_t[out.hspdlen];
+			for (size_t i = 0; i < out.hspdlen; i++)
+				out.hspd[i] = pkt[6+i];
+			tag = SubpacketParse(hspd, verbose, out, notations,
+				embeddedsigs, recipientfprs);
+			if (tag == 0x00)
+				return 0; // error: incorrect subpacket
+			if (tag == 0xFA)
+				return 0xFA; // error: unrecognized critical subpacket
+		}
+		if (pkt.size() < (8 + hspdlen))
+			return 0; // error: packet too short
+		uint32_t uspdlen = (pkt[6+hspdlen] << 8) + pkt[7+hspdlen];
+		if (pkt.size() < (8 + hspdlen + uspdlen))
+			return 0; // error: packet too short
+		uspd.insert(uspd.end(),
+			pkt.begin()+8+hspdlen, pkt.begin()+8+hspdlen+uspdlen);
+		// If a subpacket is not hashed, then the information in it cannot be
+		// considered definitive because it is not part of the signature proper.
+		if (uspdlen > 0)
+		{
+			tmcg_openpgp_packet_ctx_t untrusted;
+			tmcg_openpgp_notations_t unotations;
+			tmcg_openpgp_multiple_octets_t uembeddedsigs, urecipientfprs;
+			memset(&untrusted, 0, sizeof(untrusted));
+			tag = SubpacketParse(uspd, verbose, untrusted, unotations,
+				uembeddedsigs, urecipientfprs);
+			if (tag == 0x00)
+			{
+				PacketContextRelease(untrusted);
+				return 0; // error: incorrect subpacket
+			}
+			PacketContextEvaluate(untrusted, out);
+			PacketContextRelease(untrusted);
+			for (size_t i = 0; i < uembeddedsigs.size(); i++)
+				embeddedsigs.push_back(uembeddedsigs[i]);
+		}
+		if (pkt.size() < (10 + hspdlen + uspdlen))
+			return 0; // error: packet too short
+		// left 16 bits of signed hash value
+		for (size_t i = 0; i < 2; i++)
+			out.left[i] = pkt[8+hspdlen+uspdlen+i];
+		mpis.insert(mpis.end(), pkt.begin()+10+hspdlen+uspdlen, pkt.end());
+	}
+	else
+		return 0xFC; // warning: version not supported
+	if ((out.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
+	    (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
+	{
+		// Algorithm-Specific Fields for RSA
+		if (mpis.size() <= 2)
+			return 0; // error: too few mpis
+		mlen = PacketMPIDecode(mpis, out.md);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+	}
+	else if (out.pkalgo == TMCG_OPENPGP_PKALGO_DSA)
+	{
+		// Algorithm-Specific Fields for DSA
+		if (mpis.size() <= 2)
+			return 0; // error: too few mpis
+		mlen = PacketMPIDecode(mpis, out.r);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		if (mpis.size() <= 2)
+			return 0; // error: too few mpis
+		mlen = PacketMPIDecode(mpis, out.s);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+	}
+	else if ((out.pkalgo == TMCG_OPENPGP_PKALGO_ECDSA) ||
+		(out.pkalgo == TMCG_OPENPGP_PKALGO_EDDSA))
+	{
+		// Algorithm-Specific Fields for ECDSA/EdDSA
+		if (mpis.size() <= 2)
+			return 0; // error: too few mpis
+		mlen = PacketMPIDecode(mpis, out.r);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		if (mpis.size() <= 2)
+			return 0; // error: too few mpis
+		mlen = PacketMPIDecode(mpis, out.s);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+	}
+	else
+		return 0xFC; // warning: unsupported algorithm
+	return 2;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag3
+	(const tmcg_openpgp_octets_t &pkt,
+	 tmcg_openpgp_packet_ctx_t &out)
+{
+	if (pkt.size() < 1)
+		return 0; // error: packet too short
+	out.version = pkt[0];
+	if (out.version == 4)
+	{
+		if (pkt.size() < 4)
+			return 0; // error: packet too short
+		out.skalgo = (tmcg_openpgp_skalgo_t)pkt[1];
+		out.s2k_type = (tmcg_openpgp_stringtokey_t)pkt[2];
+		out.s2k_hashalgo = (tmcg_openpgp_hashalgo_t)pkt[3];
+		if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_SIMPLE)
+		{
+			// Simple S2K -- forbidden by RFC 4880 (only for completeness)
+			if (out.encdatalen != 0)
+				return 0; // error: already seen within context
+			tmcg_openpgp_mem_alloc += (pkt.size() - 4);
+			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+			{
+				tmcg_openpgp_mem_alloc -= (pkt.size() - 4);
+				return 0; // error: memory limit exceeded
+			}
+			out.encdatalen = pkt.size() - 4;
+			if (out.encdatalen == 0)
+				return 3; // no encrypted session key
+			out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
+			for (size_t i = 0; i < out.encdatalen; i++)
+				out.encdata[i] = pkt[4+i];
+		}
+		else if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_SALTED)
+		{
+			// Salted S2K
+			if (pkt.size() < 12)
+				return 0; // error: no salt
+			for (size_t i = 0; i < 8; i++)
+				out.s2k_salt[i] = pkt[4+i];
+			if (out.encdatalen != 0)
+				return 0; // error: already seen within context
+			tmcg_openpgp_mem_alloc += (pkt.size() - 12);
+			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+			{
+				tmcg_openpgp_mem_alloc -= (pkt.size() - 12);
+				return 0; // error: memory limit exceeded
+			}
+			out.encdatalen = pkt.size() - 12;
+			if (out.encdatalen == 0)
+				return 3; // no encrypted session key
+			out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
+			for (size_t i = 0; i < out.encdatalen; i++)
+				out.encdata[i] = pkt[12+i];
+		}
+		else if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_ITERATED)
+		{
+			// Iterated and Salted S2K
+			if (pkt.size() < 12)
+				return 0; // error: no salt
+			for (size_t i = 0; i < 8; i++)
+				out.s2k_salt[i] = pkt[4+i];
+			if (pkt.size() < 13)
+				return 0; // error: no count
+			out.s2k_count = pkt[12];
+			if (out.encdatalen != 0)
+				return 0; // error: already seen within context
+			tmcg_openpgp_mem_alloc += (pkt.size() - 13);
+			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+			{
+				tmcg_openpgp_mem_alloc -= (pkt.size() - 13);
+				return 0; // error: memory limit exceeded
+			}
+			out.encdatalen = pkt.size() - 13;
+			if (out.encdatalen == 0)
+				return 3; // no encrypted session key
+			out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
+			for (size_t i = 0; i < out.encdatalen; i++)
+				out.encdata[i] = pkt[13+i];
+		}
+		else
+			return 0xFE; // warning: unknown S2K specifier
+	}
+	else if (out.version == 5)
+	{
+		// AEAD SKESK [draft RFC 4880bis]
+		if (pkt.size() < 5)
+			return 0; // error: packet too short
+		out.skalgo = (tmcg_openpgp_skalgo_t)pkt[1];
+		out.aeadalgo = (tmcg_openpgp_aeadalgo_t)pkt[2];
+		out.s2k_type = (tmcg_openpgp_stringtokey_t)pkt[3];
+		out.s2k_hashalgo = (tmcg_openpgp_hashalgo_t)pkt[4];
+		if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_SIMPLE)
+		{
+			// Simple S2K -- forbidden by RFC 4880 (only for completeness)
+			size_t ivlen = AlgorithmIVLength(out.aeadalgo);
+			if (pkt.size() < (5 + ivlen))
+				return 0; // error: no IV
+			if (ivlen > sizeof(out.iv))
+				return 0; // error: IV too long
+			for (size_t i = 0; i < ivlen; i++)
+				out.iv[i] = pkt[5+i];
+			if (out.encdatalen != 0)
+				return 0; // error: already seen within context
+			tmcg_openpgp_mem_alloc += (pkt.size() - 5 - ivlen);
+			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+			{
+				tmcg_openpgp_mem_alloc -= (pkt.size() - 5 - ivlen);
+				return 0; // error: memory limit exceeded
+			}
+			out.encdatalen = pkt.size() - 5 - ivlen;
+			if (out.encdatalen == 0)
+				return 0; // error: no data
+			out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
+			for (size_t i = 0; i < out.encdatalen; i++)
+				out.encdata[i] = pkt[5+ivlen+i];
+		}
+		else if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_SALTED)
+		{
+			// Salted S2K
+			if (pkt.size() < 13)
+				return 0; // error: no salt
+			for (size_t i = 0; i < 8; i++)
+				out.s2k_salt[i] = pkt[5+i];
+			size_t ivlen = AlgorithmIVLength(out.aeadalgo);
+			if (pkt.size() < (13 + ivlen))
+				return 0; // error: no IV
+			if (ivlen > sizeof(out.iv))
+				return 0; // error: IV too long
+			for (size_t i = 0; i < ivlen; i++)
+				out.iv[i] = pkt[13+i];
+			if (out.encdatalen != 0)
+				return 0; // error: already seen within context
+			tmcg_openpgp_mem_alloc += (pkt.size() - 13 - ivlen);
+			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+			{
+				tmcg_openpgp_mem_alloc -= (pkt.size() - 13 - ivlen);
+				return 0; // error: memory limit exceeded
+			}
+			out.encdatalen = pkt.size() - 13 - ivlen;
+			if (out.encdatalen == 0)
+				return 0; // error: no data
+			out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
+			for (size_t i = 0; i < out.encdatalen; i++)
+				out.encdata[i] = pkt[13+ivlen+i];
+		}
+		else if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_ITERATED)
+		{
+			// Iterated and Salted S2K
+			if (pkt.size() < 13)
+				return 0; // error: no salt
+			for (size_t i = 0; i < 8; i++)
+				out.s2k_salt[i] = pkt[5+i];
+			if (pkt.size() < 14)
+				return 0; // error: no count
+			out.s2k_count = pkt[13];
+			size_t ivlen = AlgorithmIVLength(out.aeadalgo);
+			if (pkt.size() < (14 + ivlen))
+				return 0; // error: no IV
+			if (ivlen > sizeof(out.iv))
+				return 0; // error: IV too long
+			for (size_t i = 0; i < ivlen; i++)
+				out.iv[i] = pkt[14+i];
+			if (out.encdatalen != 0)
+				return 0; // error: already seen within context
+			tmcg_openpgp_mem_alloc += (pkt.size() - 14 - ivlen);
+			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+			{
+				tmcg_openpgp_mem_alloc -= (pkt.size() - 14 - ivlen);
+				return 0; // error: memory limit exceeded
+			}
+			out.encdatalen = pkt.size() - 14 - ivlen;
+			if (out.encdatalen == 0)
+				return 0; // error: no data
+			out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
+			for (size_t i = 0; i < out.encdatalen; i++)
+				out.encdata[i] = pkt[14+ivlen+i];
+		}
+		else
+			return 0xFE; // warning: unknown S2K specifier	
+	}
+	else
+		return 0xFE; // warning: version not supported
+	return 3;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag4
+	(const tmcg_openpgp_octets_t &pkt,
+	 tmcg_openpgp_packet_ctx_t &out)
+{
+	if (pkt.size() != 13)
+		return 0; // error: incorrect packet body
+	out.version = pkt[0];
+	if (out.version != 3)
+		return 0xFE; // warning: version not supported
+	out.type = (tmcg_openpgp_signature_t)pkt[1];
+	out.hashalgo = (tmcg_openpgp_hashalgo_t)pkt[2];
+	out.pkalgo = (tmcg_openpgp_pkalgo_t)pkt[3];
+	for (size_t i = 0; i < 8; i++)
+		out.signingkeyid[i] = pkt[4+i];
+	out.nestedsignature = pkt[12];
+	return 4;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag57
+	(const tmcg_openpgp_octets_t &pkt,
+	 const tmcg_openpgp_byte_t tag,
+	 tmcg_openpgp_packet_ctx_t &out,
+	 std::vector<gcry_mpi_t> &qual,
+	 std::vector<gcry_mpi_t> &x_rvss_qual,
+	 std::vector<std::string> &capl,
+	 std::vector<gcry_mpi_t> &v_i,
+	 std::vector< std::vector<gcry_mpi_t> > &c_ik)
+{
+	tmcg_openpgp_octets_t mpis;
+	size_t mlen = 0, pkt_offset = 0;
+	if (pkt.size() < 10)
+		return 0; // error: incorrect packet body
+	out.version = pkt[0];
+	out.keycreationtime = (pkt[1] << 24) + (pkt[2] << 16) +
+		(pkt[3] << 8) + pkt[4];
+	out.pkalgo = (tmcg_openpgp_pkalgo_t)pkt[5];
+	if (out.version == 4)
+		pkt_offset = 6;
+	else if (out.version == 5)
+		pkt_offset = 10;
+	else
+		return 0xFE; // warning: version not supported
+	mpis.insert(mpis.end(), pkt.begin()+pkt_offset, pkt.end());
+	if ((out.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
+	    (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_ENCRYPT_ONLY) ||
+	    (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
+	{
+		// Algorithm-Specific Fields for RSA keys
+		mlen = PacketMPIDecode(mpis, out.n);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.e);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+	}
+	else if (out.pkalgo == TMCG_OPENPGP_PKALGO_ELGAMAL)
+	{
+		// Algorithm-Specific Fields for Elgamal keys
+		mlen = PacketMPIDecode(mpis, out.p);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.g);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.y);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+	}
+	else if (out.pkalgo == TMCG_OPENPGP_PKALGO_DSA)
+	{
+		// Algorithm-Specific Fields for DSA keys
+		mlen = PacketMPIDecode(mpis, out.p);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.q);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.g);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.y);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+	}
+	else if (out.pkalgo == TMCG_OPENPGP_PKALGO_ECDH)
+	{
+		// Algorithm-Specific Fields for ECDH keys [RFC 6637]
+		out.curveoidlen = (tmcg_openpgp_pkalgo_t)pkt[pkt_offset];
+		if ((out.curveoidlen == 0) || (out.curveoidlen == 255))
+			return 0; // error: values reserved for future extensions
+		if (pkt.size() < (pkt_offset + 1 + out.curveoidlen))
+			return 0; // error: OID too short
+		for (size_t i = 0; i < out.curveoidlen; i++)
+			out.curveoid[i] = pkt[pkt_offset+1+i];
+		mpis.clear();
+		mpis.insert(mpis.end(),
+			pkt.begin()+pkt_offset+1+out.curveoidlen, pkt.end());
+		mlen = PacketMPIDecode(mpis, out.ecpk);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		if (mpis.size() < 4)
+			return 0; // error: bad KDF params size
+		if (mpis[0] != 0x03)
+			return 0; // error: bad KDF size
+		if (mpis[1] != 0x01)
+			return 0; // error: bad KDF extensions
+		out.kdf_hashalgo = (tmcg_openpgp_hashalgo_t)mpis[2];
+		out.kdf_skalgo = (tmcg_openpgp_skalgo_t)mpis[3];
+		mpis.erase(mpis.begin(), mpis.begin()+4);
+	}
+	else if ((out.pkalgo == TMCG_OPENPGP_PKALGO_ECDSA) ||
+		(out.pkalgo == TMCG_OPENPGP_PKALGO_EDDSA))
+	{
+		// Algorithm-Specific Fields for ECDSA keys [RFC 6637]
+		// Algorithm-Specific Fields for EdDSA keys [draft RFC 4880bis]
+		out.curveoidlen = (tmcg_openpgp_pkalgo_t)pkt[pkt_offset];
+		if ((out.curveoidlen == 0) || (out.curveoidlen == 255))
+			return 0; // error: values reserved for future extensions
+		if (pkt.size() < (pkt_offset + 1 + out.curveoidlen))
+			return 0; // error: OID too short
+		for (size_t i = 0; i < out.curveoidlen; i++)
+			out.curveoid[i] = pkt[pkt_offset+1+i];
+		mpis.clear();
+		mpis.insert(mpis.end(),
+			pkt.begin()+pkt_offset+1+out.curveoidlen, pkt.end());
+		mlen = PacketMPIDecode(mpis, out.ecpk);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+	}
+	else if (out.pkalgo == TMCG_OPENPGP_PKALGO_EXPERIMENTAL7)
+	{
+		// Algorithm-Specific Fields for new tDSS/DSA keys
+		mlen = PacketMPIDecode(mpis, out.p);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.q);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.g);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.h);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.y);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.n);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.t);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.i);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.qualsize);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		size_t qs = tmcg_get_gcry_mpi_ui(out.qualsize);
+		if (qs > 255)
+			return 0; // error: too many parties
+		qual.resize(qs);
+		for (size_t j = 0; j < qs; j++)
+		{
+			mlen = PacketMPIDecode(mpis, qual[j]);
+			if (!mlen || (mlen > mpis.size()))
+				return 0; // error: bad mpi
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		}
+		mlen = PacketMPIDecode(mpis, out.x_rvss_qualsize);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		size_t xqs = tmcg_get_gcry_mpi_ui(out.x_rvss_qualsize);
+		if (xqs > 255)
+			return 0; // error: too many parties
+		x_rvss_qual.resize(xqs);
+		for (size_t j = 0; j < xqs; j++)
+		{
+			mlen = PacketMPIDecode(mpis, x_rvss_qual[j]);
+			if (!mlen || (mlen > mpis.size()))
+				return 0; // error
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		}
+		size_t n = tmcg_get_gcry_mpi_ui(out.n);
+		size_t t = tmcg_get_gcry_mpi_ui(out.t);
+		if ((n > 255) || (t > 128) || (tmcg_get_gcry_mpi_ui(out.i) >= n))
+			return 0; // error: too many parties or bad threshold/index
+		capl.clear();
+		for (size_t j = 0; j < n; j++)
+		{
+			std::string peerid;
+			mlen = PacketStringDecode(mpis, peerid);
+			if (!mlen || (mlen > mpis.size()))
+				return 0; // error
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+			capl.push_back(peerid);
+		}
+		c_ik.resize(n);
+		for (size_t j = 0; j < n; j++)
+		{
+			c_ik[j].resize(t + 1);
+			for (size_t k = 0; k <= t; k++)
+			{
+				mlen = PacketMPIDecode(mpis, c_ik[j][k]);
+				if (!mlen || (mlen > mpis.size()))
+					return 0; // error
+				mpis.erase(mpis.begin(), mpis.begin()+mlen);
+			}
+		}
+	}
+	else if (out.pkalgo == TMCG_OPENPGP_PKALGO_EXPERIMENTAL8)
+	{
+		// Algorithm-Specific Fields for old tDSS/DSA keys
+		mlen = PacketMPIDecode(mpis, out.p);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.q);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.g);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.h);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.y);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.n);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.t);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.i);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.qualsize);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		size_t qs = tmcg_get_gcry_mpi_ui(out.qualsize);
+		if (qs > 255)
+			return 0; // error: too many parties
+		qual.resize(qs);
+		for (size_t j = 0; j < qs; j++)
+		{
+			mlen = PacketMPIDecode(mpis, qual[j]);
+			if (!mlen || (mlen > mpis.size()))
+				return 0; // error
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		}
+		capl.clear();
+		for (size_t j = 0; j < qs; j++)
+		{
+			std::string peerid;
+			mlen = PacketStringDecode(mpis, peerid);
+			if (!mlen || (mlen > mpis.size()))
+				return 0; // error
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+			capl.push_back(peerid);
+		}
+		size_t n = tmcg_get_gcry_mpi_ui(out.n);
+		size_t t = tmcg_get_gcry_mpi_ui(out.t);
+		if ((n > 255) || (t > 128))
+			return 0; // error: too many parties
+		c_ik.resize(n);
+		for (size_t j = 0; j < n; j++)
+		{
+			c_ik[j].resize(t + 1);
+			for (size_t k = 0; k <= t; k++)
+			{
+				mlen = PacketMPIDecode(mpis, c_ik[j][k]);
+				if (!mlen || (mlen > mpis.size()))
+					return 0; // error
+				mpis.erase(mpis.begin(), mpis.begin()+mlen);
+			}
+		}
+	}
+	else if (out.pkalgo == TMCG_OPENPGP_PKALGO_EXPERIMENTAL9)
+	{
+		// Algorithm-Specific Fields for tElG keys
+		mlen = PacketMPIDecode(mpis, out.p);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.q);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.g);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.h);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.y);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.n);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.t);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.i);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.qualsize);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		size_t qs = tmcg_get_gcry_mpi_ui(out.qualsize);
+		if (qs > 255)
+			return 0; // error: too many parties
+		qual.resize(qs);
+		for (size_t j = 0; j < qs; j++)
+		{
+			mlen = PacketMPIDecode(mpis, qual[j]);
+			if (!mlen || (mlen > mpis.size()))
+				return 0; // error
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		}
+		size_t n = tmcg_get_gcry_mpi_ui(out.n);
+		size_t t = tmcg_get_gcry_mpi_ui(out.t);
+		if ((n > 255) || (t > 128))
+			return 0; // error: too many parties
+		v_i.resize(n);
+		for (size_t j = 0; j < n; j++)
+		{
+			mlen = PacketMPIDecode(mpis, v_i[j]);
+			if (!mlen || (mlen > mpis.size()))
+				return 0; // error
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		}
+		c_ik.resize(n);
+		for (size_t j = 0; j < n; j++)
+		{
+			c_ik[j].resize(t + 1);
+			for (size_t k = 0; k <= t; k++)
+			{
+				mlen = PacketMPIDecode(mpis, c_ik[j][k]);
+				if (!mlen || (mlen > mpis.size()))
+					return 0; // error
+				mpis.erase(mpis.begin(), mpis.begin()+mlen);
+			}
+		}
+	}
+	else
+		return 0; // error: unsupported public-key algo
+	// secret fields
+	if (mpis.size() < 1)
+		return 0; // error: no S2K convention
+	out.s2kconv = mpis[0];
+	mpis.erase(mpis.begin(), mpis.begin()+1);
+	if (out.version == 5)
+	{
+		if (out.s2kconv == 255)
+			return 0; // error: forbidden by spec (RFC4880bis)
+		mpis.erase(mpis.begin(), mpis.begin()+1); // skip octet count
+	}
+	if (out.s2kconv == 0)
+	{
+		if (out.version == 5)
+		{
+			if (mpis.size() < 4)
+				return 0; // error: no v5 octet count
+			mpis.erase(mpis.begin(), mpis.begin()+4); // skip octet count
+		}
+		tmcg_openpgp_secure_octets_t smpis;
+		for (size_t i = 0; i < mpis.size(); i++)
+			smpis.push_back(mpis[i]); // copy
+		// not encrypted + checksum
+		size_t chksum = 0;
+		if ((out.pkalgo == TMCG_OPENPGP_PKALGO_ELGAMAL) ||
+		    (out.pkalgo == TMCG_OPENPGP_PKALGO_DSA))
+		{
+			// Algorithm-Specific Fields for Elgamal
+			// Algorithm-Specific Fields for DSA
+			mlen = PacketMPIDecode(smpis, out.x, chksum);
+			if (!mlen || (mlen > smpis.size()))
+				return 0; // error: bad mpi
+			smpis.erase(smpis.begin(), smpis.begin()+mlen);
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		}
+		else if ((out.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
+		         (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_ENCRYPT_ONLY) ||
+		         (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
+		{
+			// Algorithm-Specific Fields for RSA
+			mlen = PacketMPIDecode(smpis, out.d, chksum);
+			if (!mlen || (mlen > smpis.size()))
+				return 0; // error: bad mpi
+			smpis.erase(smpis.begin(), smpis.begin()+mlen);
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+			mlen = PacketMPIDecode(smpis, out.p, chksum);
+			if (!mlen || (mlen > smpis.size()))
+				return 0; // error: bad mpi
+			smpis.erase(smpis.begin(), smpis.begin()+mlen);
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+			mlen = PacketMPIDecode(smpis, out.q, chksum);
+			if (!mlen || (mlen > smpis.size()))
+				return 0; // error: bad mpi
+			smpis.erase(smpis.begin(), smpis.begin()+mlen);
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+			mlen = PacketMPIDecode(smpis, out.u, chksum);
+			if (!mlen || (mlen > smpis.size()))
+				return 0; // error: bad mpi
+			smpis.erase(smpis.begin(), smpis.begin()+mlen);
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		}
+		else if ((out.pkalgo == TMCG_OPENPGP_PKALGO_ECDH) ||
+			(out.pkalgo == TMCG_OPENPGP_PKALGO_ECDSA) ||
+			(out.pkalgo == TMCG_OPENPGP_PKALGO_EDDSA))
+		{
+			// Algorithm-Specific Fields for ECDH keys [RFC 6637]
+			// Algorithm-Specific Fields for ECDSA keys [RFC 6637]
+			// Algorithm-Specific Fields for EdDSA [draft RFC 4880bis]
+			mlen = PacketMPIDecode(smpis, out.ecsk, chksum);
+			if (!mlen || (mlen > smpis.size()))
+				return 0; // error: bad mpi
+			smpis.erase(smpis.begin(), smpis.begin()+mlen);
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		}
+		else if ((out.pkalgo == TMCG_OPENPGP_PKALGO_EXPERIMENTAL7) ||
+		         (out.pkalgo == TMCG_OPENPGP_PKALGO_EXPERIMENTAL8) ||
+		         (out.pkalgo == TMCG_OPENPGP_PKALGO_EXPERIMENTAL9))
+		{
+			// Algorithm-Specific Fields tDSS/DKG
+			mlen = PacketMPIDecode(smpis, out.x_i, chksum);
+			if (!mlen || (mlen > smpis.size()))
+				return 0; // error: bad mpi
+			smpis.erase(smpis.begin(), smpis.begin()+mlen);
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+			mlen = PacketMPIDecode(smpis, out.xprime_i, chksum);
+			if (!mlen || (mlen > smpis.size()))
+				return 0; // error: bad mpi
+			smpis.erase(smpis.begin(), smpis.begin()+mlen);
+			mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		}
+		else
+			return 0; // error: algo not supported
+		if (mpis.size() < 2)
+			return 0; // error: no checksum
+		size_t chksum2 = (mpis[0] << 8) + mpis[1];
+		if (chksum != chksum2)
+			return 0; // error: checksum mismatch
+		mpis.erase(mpis.begin(), mpis.begin()+2);
+	}
+	else if ((out.s2kconv == 253) || (out.s2kconv == 254) ||
+		(out.s2kconv == 255))
+	{
+		// encrypted + AEAD or SHA-1 hash or checksum
+		if (mpis.size() < 1)
+			return 0; // error: no sym. algorithm
+		out.skalgo = (tmcg_openpgp_skalgo_t)mpis[0];
+		mpis.erase(mpis.begin(), mpis.begin()+1);
+		if (out.s2kconv == 253)
+		{
+			if (mpis.size() < 1)
+				return 0; // error: no AEAD algorithm
+			out.aeadalgo = (tmcg_openpgp_aeadalgo_t)mpis[0];
+			mpis.erase(mpis.begin(), mpis.begin()+1);
+		}
+		if (mpis.size() < 2)
+			return 0; // error: bad S2K specifier
+		out.s2k_type = (tmcg_openpgp_stringtokey_t)mpis[0];
+		out.s2k_hashalgo = (tmcg_openpgp_hashalgo_t)mpis[1];
+		mpis.erase(mpis.begin(), mpis.begin()+2);
+		if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_SIMPLE)
+		{
+			// Simple S2K
+		}
+		else if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_SALTED)
+		{
+			// Salted S2K
+			if (mpis.size() < 8)
+				return 0; // error: no salt
+			for (size_t i = 0; i < 8; i++)
+				out.s2k_salt[i] = mpis[i];
+			mpis.erase(mpis.begin(), mpis.begin()+8);
+		}
+		else if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_ITERATED)
+		{
+			// Iterated and Salted S2K
+			if (mpis.size() < 8)
+				return 0; // error: no salt
+			for (size_t i = 0; i < 8; i++)
+				out.s2k_salt[i] = mpis[i];
+			mpis.erase(mpis.begin(), mpis.begin()+8);
+			if (mpis.size() < 1)
+				return 0; // error: no count
+			out.s2k_count = mpis[0];
+			mpis.erase(mpis.begin(), mpis.begin()+1);
+		}
+		else
+			return 0xFE; // warning: unknown S2K specifier
+		size_t ivlen = AlgorithmIVLength(out.skalgo);
+		if (mpis.size() < ivlen)
+			return 0; // error: no IV
+		if (ivlen > sizeof(out.iv))
+			return 0; // error: IV too long
+		for (size_t i = 0; i < ivlen; i++)
+			out.iv[i] = mpis[i];
+		mpis.erase(mpis.begin(), mpis.begin()+ivlen);
+		if (mpis.size() < 4)
+			return 0; // error: no v5 octet count
+		if (out.version == 5)
+			mpis.erase(mpis.begin(), mpis.begin()+4); // skip v5 octet count
+		if (mpis.size() < 4)
+			return 0; // error: bad encrypted data
+		if (out.encdatalen != 0)
+			return 0; // already seen within context
+		tmcg_openpgp_mem_alloc += mpis.size();
+		if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+		{
+			tmcg_openpgp_mem_alloc -= mpis.size();
+			return 0; // error: memory limit exceeded
+		}
+		out.encdatalen = mpis.size();
+		if (out.encdatalen == 0)
+			return 0; // error: no data
+		out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
+		for (size_t i = 0; i < out.encdatalen; i++)
+			out.encdata[i] = mpis[i];
+	}
+	else
+		return 0; // S2K convention not supported
+	return tag;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag614
+	(const tmcg_openpgp_octets_t &pkt,
+	 const tmcg_openpgp_byte_t tag,
+	 tmcg_openpgp_packet_ctx_t &out)
+{
+	tmcg_openpgp_octets_t mpis;
+	size_t mlen = 0, pkt_offset = 0;
+	if (pkt.size() < 10)
+		return 0; // error: incorrect packet body
+	out.version = pkt[0];
+	out.keycreationtime = (pkt[1] << 24) + (pkt[2] << 16) +
+		(pkt[3] << 8) + pkt[4];
+	out.pkalgo = (tmcg_openpgp_pkalgo_t)pkt[5];
+	if (out.version == 4)
+		pkt_offset = 6;
+	else if (out.version == 5)
+		pkt_offset = 10;
+	else
+		return 0xFE; // warning: version not supported
+	mpis.insert(mpis.end(), pkt.begin()+pkt_offset, pkt.end());
+	if ((out.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
+	    (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_ENCRYPT_ONLY) ||
+	    (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
+	{
+		// Algorithm-Specific Fields for RSA keys
+		mlen = PacketMPIDecode(mpis, out.n);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.e);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+	}
+	else if (out.pkalgo == TMCG_OPENPGP_PKALGO_ELGAMAL)
+	{
+		// Algorithm-Specific Fields for Elgamal keys
+		mlen = PacketMPIDecode(mpis, out.p);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.g);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.y);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+	}
+	else if (out.pkalgo == TMCG_OPENPGP_PKALGO_DSA)
+	{
+		// Algorithm-Specific Fields for DSA keys
+		mlen = PacketMPIDecode(mpis, out.p);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.q);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.g);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		mlen = PacketMPIDecode(mpis, out.y);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+	}
+	else if (out.pkalgo == TMCG_OPENPGP_PKALGO_ECDH)
+	{
+		// Algorithm-Specific Fields for ECDH keys [RFC 6637]
+		out.curveoidlen = (tmcg_openpgp_pkalgo_t)pkt[pkt_offset];
+		if ((out.curveoidlen == 0) || (out.curveoidlen == 255))
+			return 0; // error: values reserved for future extensions
+		if (pkt.size() < (pkt_offset + 1 + out.curveoidlen))
+			return 0; // error: OID too short
+		for (size_t i = 0; i < out.curveoidlen; i++)
+			out.curveoid[i] = pkt[pkt_offset+1+i];
+		mpis.clear();
+		mpis.insert(mpis.end(),
+			pkt.begin()+pkt_offset+1+out.curveoidlen, pkt.end());
+		mlen = PacketMPIDecode(mpis, out.ecpk);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+		mpis.erase(mpis.begin(), mpis.begin()+mlen);
+		if (mpis.size() != 4)
+			return 0; // error: bad KDF params size
+		if (mpis[0] != 0x03)
+			return 0; // error: bad KDF size
+		if (mpis[1] != 0x01)
+			return 0; // error: bad KDF extensions
+		out.kdf_hashalgo = (tmcg_openpgp_hashalgo_t)mpis[2];
+		out.kdf_skalgo = (tmcg_openpgp_skalgo_t)mpis[3];
+	}
+	else if ((out.pkalgo == TMCG_OPENPGP_PKALGO_ECDSA) ||
+		(out.pkalgo == TMCG_OPENPGP_PKALGO_EDDSA))
+	{
+		// Algorithm-Specific Fields for ECDSA keys [RFC 6637]
+		// Algorithm-Specific Fields for EdDSA keys [draft RFC 4880bis]
+		out.curveoidlen = (tmcg_openpgp_pkalgo_t)pkt[pkt_offset];
+		if ((out.curveoidlen == 0) || (out.curveoidlen == 255))
+			return 0; // error: values reserved for future extensions
+		if (pkt.size() < (pkt_offset + 1 + out.curveoidlen))
+			return 0; // error: OID too short
+		for (size_t i = 0; i < out.curveoidlen; i++)
+			out.curveoid[i] = pkt[pkt_offset+1+i];
+		mpis.clear();
+		mpis.insert(mpis.end(),
+			pkt.begin()+pkt_offset+1+out.curveoidlen, pkt.end());
+		mlen = PacketMPIDecode(mpis, out.ecpk);
+		if (!mlen || (mlen > mpis.size()))
+			return 0; // error: bad or zero mpi
+	}
+	else
+		return 0xFD; // warning: unsupported algorithm
+	return tag;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag8
+	(const tmcg_openpgp_octets_t &pkt,
+	 tmcg_openpgp_packet_ctx_t &out)
+{
+	if (pkt.size() < 2)
+		return 0; // error: incorrect packet body
+	out.compalgo = (tmcg_openpgp_compalgo_t)pkt[0];
+	if (out.compdatalen != 0)
+		return 0; // error: already seen within context
+	tmcg_openpgp_mem_alloc += (pkt.size() - 1);
+	if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+	{
+		tmcg_openpgp_mem_alloc -= (pkt.size() - 1);
+		return 0; // error: memory limit exceeded
+	}
+	out.compdatalen = pkt.size() - 1;
+	if (out.compdatalen == 0)
+		return 0; // error: no data
+	out.compdata = new tmcg_openpgp_byte_t[out.compdatalen];
+	for (size_t i = 0; i < out.compdatalen; i++)
+		out.compdata[i] = pkt[1+i];
+	return 8;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag9
+	(const tmcg_openpgp_octets_t &pkt,
+	 tmcg_openpgp_packet_ctx_t &out)
+{
+	if (pkt.size() == 0)
+		return 0; // error: empty packet body
+	if (out.encdatalen != 0)
+		return 0; // error: already seen within context
+	tmcg_openpgp_mem_alloc += pkt.size();
+	if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+	{
+		tmcg_openpgp_mem_alloc -= pkt.size();
+		return 0; // error: memory limit exceeded
+	}
+	out.encdatalen = pkt.size();
+	if (out.encdatalen == 0)
+		return 0; // error: no data
+	out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
+	for (size_t i = 0; i < out.encdatalen; i++)
+		out.encdata[i] = pkt[i];
+	return 9;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag10
+	(const tmcg_openpgp_octets_t &pkt,
+	 tmcg_openpgp_packet_ctx_t &out)
+{
+	if (pkt.size() != 3)
+		return 0; // error: incorrect packet body
+	if ((pkt[0] != 0x50) || (pkt[1] != 0x47) || (pkt[2] != 0x50))
+		return 0; // error: bad marker
+	out.marker = true; 
+	return 10;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag11
+	(const tmcg_openpgp_octets_t &pkt,
+	 tmcg_openpgp_packet_ctx_t &out)
+{
+	if (pkt.size() < 2)
+		return 0; // error: incorrect packet body
+	out.dataformat = pkt[0];
+	out.datafilenamelen = pkt[1];
+	if (pkt.size() < (out.datafilenamelen + 2))
+		return 0; // error: packet too short
+	for (size_t i = 0; i < out.datafilenamelen; i++)
+		out.datafilename[i] = pkt[2+i];
+	if (pkt.size() < (out.datafilenamelen + 6))
+		return 0; // error: packet too short
+	out.datatime = (pkt[2+out.datafilenamelen] << 24) +
+		(pkt[3+out.datafilenamelen] << 16) +
+		(pkt[4+out.datafilenamelen] << 8) +	pkt[5+out.datafilenamelen];
+	if (out.datalen != 0)
+		return 0; // error: already seen within this context
+	tmcg_openpgp_mem_alloc += (pkt.size() - (out.datafilenamelen + 6));
+	if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+	{
+		tmcg_openpgp_mem_alloc -= (pkt.size()-(out.datafilenamelen+6));
+		return 0; // error: memory limit exceeded
+	}
+	out.datalen = pkt.size() - (out.datafilenamelen + 6);
+	if (out.datalen == 0)
+		return 0; // error: no data
+	out.data = new tmcg_openpgp_byte_t[out.datalen];
+	for (size_t i = 0; i < out.datalen; i++)
+		out.data[i] = pkt[6+out.datafilenamelen+i];
+	return 11;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag13
+	(const tmcg_openpgp_octets_t &pkt,
+	 tmcg_openpgp_packet_ctx_t &out)
+{
+	if (out.uiddatalen != 0)
+		return 0; // error: already seen within context
+	tmcg_openpgp_mem_alloc += pkt.size();
+	if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+	{
+		tmcg_openpgp_mem_alloc -= pkt.size();
+		return 0; // error: memory limit exceeded
+	}
+	out.uiddatalen = pkt.size();
+	if (pkt.size() > 0)
+	{
+		out.uiddata = new tmcg_openpgp_byte_t[out.uiddatalen];
+		for (size_t i = 0; i < out.uiddatalen; i++)
+			out.uiddata[i] = pkt[i];
+	}
+	return 13;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag17
+	(const tmcg_openpgp_octets_t &pkt,
+	 tmcg_openpgp_packet_ctx_t &out)
+{
+	if (pkt.size() < 2)
+		return 0; // error: incorrect packet body
+	if (out.uatdatalen != 0)
+		return 0; // error: already seen within context
+	tmcg_openpgp_mem_alloc += pkt.size();
+	if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+	{
+		tmcg_openpgp_mem_alloc -= pkt.size();
+		return 0; // error: memory limit exceeded
+	}
+	out.uatdatalen = pkt.size();
+	if (out.uatdatalen == 0)
+		return 0; // error: no data
+	out.uatdata = new tmcg_openpgp_byte_t[out.uatdatalen];
+	for (size_t i = 0; i < out.uatdatalen; i++)
+		out.uatdata[i] = pkt[i];
+	return 17;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag18
+	(const tmcg_openpgp_octets_t &pkt,
+	 tmcg_openpgp_packet_ctx_t &out)
+{
+	if (pkt.size() < 2)
+		return 0; // error: incorrect packet body
+	out.version = pkt[0];
+	if (out.version != 1)
+		return 0xFE; // warning: version not supported
+	if (out.encdatalen != 0)
+		return 0; // error: already seen within context
+	tmcg_openpgp_mem_alloc += (pkt.size() - 1);
+	if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+	{
+		tmcg_openpgp_mem_alloc -= (pkt.size() - 1);
+		return 0; // error: memory limit exceeded
+	}
+	out.encdatalen = pkt.size() - 1;
+	if (out.encdatalen == 0)
+		return 0; // error: no data
+	out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
+	for (size_t i = 0; i < out.encdatalen; i++)
+		out.encdata[i] = pkt[1+i];
+	return 18;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag19
+	(const tmcg_openpgp_octets_t &pkt,
+	 tmcg_openpgp_packet_ctx_t &out)
+{
+	if (!out.newformat)
+		return 0; // error: wrong format of packet tag
+	if (pkt.size() != 20)
+		return 0; // error: incorrect packet body
+	for (size_t i = 0; i < pkt.size(); i++)
+		out.mdc_hash[i] = pkt[i];
+	return 19;
+}
+
+tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecodeTag20
+	(const tmcg_openpgp_octets_t &pkt,
+	 tmcg_openpgp_packet_ctx_t &out)
+{
+	if (pkt.size() < 4)
+		return 0; // error: packet too short
+	out.version = pkt[0];
+	out.skalgo = (tmcg_openpgp_skalgo_t)pkt[1];
+	out.aeadalgo = (tmcg_openpgp_aeadalgo_t)pkt[2];
+	out.chunksize = pkt[3];
+	if (out.version == 1)
+	{
+		size_t ivlen = AlgorithmIVLength(out.aeadalgo);
+		if (pkt.size() < (4 + ivlen))
+			return 0; // error: no IV
+		if (ivlen > sizeof(out.iv))
+			return 0; // error: IV too long
+		for (size_t i = 0; i < ivlen; i++)
+			out.iv[i] = pkt[4+i];
+		if (out.encdatalen != 0)
+			return 0; // error: already seen within context
+		tmcg_openpgp_mem_alloc += (pkt.size() - 4 - ivlen);
+		if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
+		{
+			tmcg_openpgp_mem_alloc -= (pkt.size() - 4 - ivlen);
+			return 0; // error: memory limit exceeded
+		}
+		out.encdatalen = pkt.size() - 4 - ivlen;
+		if (out.encdatalen == 0)
+			return 0; // error: no encrypted session key
+		out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
+		for (size_t i = 0; i < out.encdatalen; i++)
+			out.encdata[i] = pkt[4+ivlen+i];
+	}
+	else
+		return 0xFE; // warning: version not supported
+	return 20;
+}
+
 tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecode
 	(tmcg_openpgp_octets_t &in, const int verbose,
 	 tmcg_openpgp_packet_ctx_t &out,
@@ -10183,7 +12782,9 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecode
 	 std::vector<std::string> &capl,
 	 std::vector<gcry_mpi_t> &v_i,
 	 std::vector< std::vector<gcry_mpi_t> > &c_ik,
-	 tmcg_openpgp_notations_t &notations)
+	 tmcg_openpgp_notations_t &notations,
+	 tmcg_openpgp_multiple_octets_t &embeddedsigs,
+	 tmcg_openpgp_multiple_octets_t &recipientfprs)
 {
 	memset(&out, 0, sizeof(out)); // clear output context
 	// Exportable Certification: If this packet is not present, the
@@ -10209,7 +12810,7 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecode
 	tmcg_openpgp_byte_t tag = in[0];
 	tmcg_openpgp_byte_t lentype = 0x00;
 	current_packet.push_back(tag); // store packet header
-	in.erase(in.begin(), in.begin()+1); // remove first octet
+	in.erase(in.begin()); // remove first octet
 	if ((tag & 0x80) != 0x80)
 		return 0; // error: Bit 7 of first octet not set
 	if ((tag & 0x40) == 0x40)
@@ -10231,13 +12832,13 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecode
 	// header in the packet MUST NOT be a Partial Body Length header.
 	// Partial Body Length headers may only be used for the non-final
 	// parts of the packet.
-	tmcg_openpgp_octets_t pkt; // this is only the packet body
+	tmcg_openpgp_octets_t pkt; // this contains only the packet body
 	uint32_t len = 0;
 	bool partlen = true, firstlen = true;
 	while (partlen)
 	{
-		size_t headlen = PacketLengthDecode(in, out.newformat, lentype, len,
-			partlen);
+		size_t headlen = PacketLengthDecode(in, out.newformat,
+			lentype, len, partlen);
 		if (!headlen)
 			return 0; // error: invalid length header
 		if (headlen == 42)
@@ -10254,1232 +12855,78 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecode
 		// types.
 		if (partlen && firstlen && (len < 512))
 			return 0; // error: first partial less than 512 octets
-		if (partlen && (tag != 8) && (tag != 9) && (tag != 11) && (tag != 18))
+		if (partlen && (tag != 8) && (tag != 9) && (tag != 11) &&
+			(tag != 18))
 		{
 			return 0; // error: no literal, compressed, ... allowed
 		}
 		current_packet.insert(current_packet.end(), // copy packet data
 			in.begin(), in.begin()+headlen+len);
-		pkt.insert(pkt.end(),
+		pkt.insert(pkt.end(), // copy packet body
 			in.begin()+headlen, in.begin()+headlen+len);
 		in.erase(in.begin(), in.begin()+headlen+len); // remove chunck
 		firstlen = false;
 	}
-	tmcg_openpgp_octets_t hspd, uspd, mpis;
-	size_t mlen = 0, pkt_offset = 0;
-	uint32_t hspdlen = 0, uspdlen = 0;
+	tmcg_openpgp_byte_t ret = 0;
 	switch (tag)
 	{
 		case 1: // Public-Key Encrypted Session Key Packet
-			if (pkt.size() < 16)
-				return 0; // error: incorrect packet body
-			out.version = pkt[0];
-			if (out.version != 3)
-				return 0; // error: version not supported
-			for (size_t i = 0; i < 8; i++)
-				out.keyid[i] = pkt[1+i];
-			out.pkalgo = (tmcg_openpgp_pkalgo_t)pkt[9];
-			mpis.insert(mpis.end(), pkt.begin()+10, pkt.end());
-			if ((out.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
-			    (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_ENCRYPT_ONLY))
-			{
-				// Algorithm-Specific Fields for RSA
-				if (mpis.size() <= 2)
-					return 0; // error: too few mpis
-				mlen = PacketMPIDecode(mpis, out.me);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-			}
-			else if (out.pkalgo == TMCG_OPENPGP_PKALGO_ELGAMAL)
-			{
-				// Algorithm-Specific Fields for Elgamal
-				if (mpis.size() <= 2)
-					return 0; // error: too few mpis
-				mlen = PacketMPIDecode(mpis, out.gk);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				if (mpis.size() <= 2)
-					return 0; // error: too few mpis
-				mlen = PacketMPIDecode(mpis, out.myk);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-			}
-			else if (out.pkalgo == TMCG_OPENPGP_PKALGO_ECDH)
-			{
-				// Algorithm-Specific Fields for ECDH keys [RFC 6637]
-				if (mpis.size() <= 2)
-					return 0; // error: too few mpis
-				mlen = PacketMPIDecode(mpis, out.ecepk);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				// a one-octet size, followed by a symmetric key encoded
-				// using the method described in Section 8 [RFC 6637]
-				if (mpis.size() <= 2)
-					return 0; // error: result of key wrapping too short
-				out.rkwlen = mpis[0];
-				if ((out.rkwlen == 0) || (out.rkwlen == 255))
-					return 0; // error: bad result of key wrapping
-				if (mpis.size() < (out.rkwlen + 1))
-					return 0; // error: result of key wrapping too short
-				for (size_t i = 0; i < out.rkwlen; i++)
-					out.rkw[i] = mpis[1+i];
-				mpis.erase(mpis.begin(), mpis.begin()+out.rkwlen+1);
-			}
-			else
-				return 0xFE; // warning: unsupported algo
+			ret = PacketDecodeTag1(pkt, out);
 			break;
 		case 2: // Signature Packet
-			if (pkt.size() < 1)
-				return 0; // error: incorrect packet body
-			out.version = pkt[0];
-			if (out.version == 3)
-			{
-				if (pkt.size() < 22)
-					return 0; // error: packet too short
-				if (pkt[1] != 5)
-					return 0; // error: incorrect length
-				out.type = (tmcg_openpgp_signature_t)pkt[2];
-				out.sigcreationtime = (pkt[3] << 24) + (pkt[4] << 16) +
-					(pkt[5] << 8) + pkt[6];
-				for (size_t i = 0; i < 8; i++)
-					out.issuer[i] = pkt[7+i];
-				out.pkalgo = (tmcg_openpgp_pkalgo_t)pkt[15];
-				out.hashalgo = (tmcg_openpgp_hashalgo_t)pkt[16];
-				// left 16 bits of signed hash value
-				for (size_t i = 0; i < 2; i++)
-					out.left[i] = pkt[17+i];
-				mpis.insert(mpis.end(), pkt.begin()+19, pkt.end());
-			}
-			else if ((out.version == 4) || (out.version == 5))
-			{
-				if (pkt.size() < 12)
-					return 0; // error: packet too short
-				out.type = (tmcg_openpgp_signature_t)pkt[1];
-				out.pkalgo = (tmcg_openpgp_pkalgo_t)pkt[2];
-				out.hashalgo = (tmcg_openpgp_hashalgo_t)pkt[3];
-				hspdlen = (pkt[4] << 8) + pkt[5];
-				if (pkt.size() < (6 + hspdlen))
-					return 0; // error: packet too short
-				hspd.insert(hspd.end(),
-					pkt.begin()+6, pkt.begin()+6+hspdlen);
-				out.hspdlen = hspdlen;
-				tmcg_openpgp_mem_alloc += out.hspdlen;
-				if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-				{
-					tmcg_openpgp_mem_alloc -= out.hspdlen;
-					return 0; // error: memory limit exceeded
-				}
-				out.hspd = new tmcg_openpgp_byte_t[out.hspdlen];
-				for (size_t i = 0; i < out.hspdlen; i++)
-					out.hspd[i] = pkt[6+i];
-				tag = SubpacketParse(hspd, verbose, out, notations);
-				if (tag == 0x00)
-					return 0; // error: incorrect subpacket
-				if (pkt.size() < (8 + hspdlen))
-					return 0; // error: packet too short
-				uspdlen = (pkt[6+hspdlen] << 8) + pkt[7+hspdlen];
-				if (pkt.size() < (8 + hspdlen + uspdlen))
-					return 0; // error: packet too short
-				uspd.insert(uspd.end(),
-					pkt.begin()+8+hspdlen, pkt.begin()+8+hspdlen+uspdlen);
-				// If a subpacket is not hashed, then the
-				// information in it cannot be considered
-				// definitive because it is not part of the
-				// signature proper.
-				tmcg_openpgp_packet_ctx_t untrusted;
-				tmcg_openpgp_notations_t unotations;
-				memset(&untrusted, 0, sizeof(untrusted));
-				tag = SubpacketParse(uspd, verbose, untrusted, unotations);
-				if (tag == 0x00)
-				{
-					PacketContextRelease(untrusted);
-					return 0; // error: incorrect subpacket
-				}
-				PacketContextEvaluate(untrusted, out);
-				PacketContextRelease(untrusted);
-				if (pkt.size() < (10 + hspdlen + uspdlen))
-					return 0; // error: packet too short
-				 // left 16 bits of signed hash value
-				for (size_t i = 0; i < 2; i++)
-					out.left[i] = pkt[8+hspdlen+uspdlen+i];
-				mpis.insert(mpis.end(),
-					pkt.begin()+10+hspdlen+uspdlen, pkt.end());
-			}
-			else
-				return 0xFC; // warning: version not supported
-			if ((out.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
-			    (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
-			{
-				// Algorithm-Specific Fields for RSA
-				if (mpis.size() <= 2)
-					return 0; // error: too few mpis
-				mlen = PacketMPIDecode(mpis, out.md);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-			}
-			else if (out.pkalgo == TMCG_OPENPGP_PKALGO_DSA)
-			{
-				// Algorithm-Specific Fields for DSA
-				if (mpis.size() <= 2)
-					return 0; // error: too few mpis
-				mlen = PacketMPIDecode(mpis, out.r);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				if (mpis.size() <= 2)
-					return 0; // error: too few mpis
-				mlen = PacketMPIDecode(mpis, out.s);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-			}
-			else if ((out.pkalgo == TMCG_OPENPGP_PKALGO_ECDSA) ||
-				(out.pkalgo == TMCG_OPENPGP_PKALGO_EDDSA))
-			{
-				// Algorithm-Specific Fields for ECDSA/EdDSA
-				if (mpis.size() <= 2)
-					return 0; // error: too few mpis
-				mlen = PacketMPIDecode(mpis, out.r);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				if (mpis.size() <= 2)
-					return 0; // error: too few mpis
-				mlen = PacketMPIDecode(mpis, out.s);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-			}
-			else
-				return 0xFC; // warning: unsupported algo
+			ret = PacketDecodeTag2(pkt, verbose, out, notations,
+				embeddedsigs, recipientfprs);
 			break;
 		case 3: // Symmetric-Key Encrypted Session Key Packet
-			if (pkt.size() < 1)
-				return 0; // error: packet too short
-			out.version = pkt[0];
-			if (out.version == 4)
-			{
-				if (pkt.size() < 4)
-					return 0; // error: packet too short
-				out.skalgo = (tmcg_openpgp_skalgo_t)pkt[1];
-				out.s2k_type = (tmcg_openpgp_stringtokey_t)pkt[2];
-				out.s2k_hashalgo = (tmcg_openpgp_hashalgo_t)pkt[3];
-				if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_SIMPLE)
-				{
-					// Simple S2K -- forbidden by RFC 4880 (only for completeness)
-					if (out.encdatalen != 0)
-						return 0; // error: already seen within context
-					tmcg_openpgp_mem_alloc += (pkt.size() - 4);
-					if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-					{
-						tmcg_openpgp_mem_alloc -= (pkt.size() - 4);
-						return 0; // error: memory limit exceeded
-					}
-					out.encdatalen = pkt.size() - 4;
-					if (out.encdatalen == 0)
-						break; // no encrypted session key
-					out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
-					for (size_t i = 0; i < out.encdatalen; i++)
-						out.encdata[i] = pkt[4+i];
-				}
-				else if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_SALTED)
-				{
-					// Salted S2K
-					if (pkt.size() < 12)
-						return 0; // error: no salt
-					for (size_t i = 0; i < 8; i++)
-						out.s2k_salt[i] = pkt[4+i];
-					if (out.encdatalen != 0)
-						return 0; // error: already seen within context
-					tmcg_openpgp_mem_alloc += (pkt.size() - 12);
-					if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-					{
-						tmcg_openpgp_mem_alloc -= (pkt.size() - 12);
-						return 0; // error: memory limit exceeded
-					}
-					out.encdatalen = pkt.size() - 12;
-					if (out.encdatalen == 0)
-						break; // no encrypted session key
-					out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
-					for (size_t i = 0; i < out.encdatalen; i++)
-						out.encdata[i] = pkt[12+i];
-				}
-				else if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_ITERATED)
-				{
-					// Iterated and Salted S2K
-					if (pkt.size() < 12)
-						return 0; // error: no salt
-					for (size_t i = 0; i < 8; i++)
-						out.s2k_salt[i] = pkt[4+i];
-					if (pkt.size() < 13)
-						return 0; // error: no count
-					out.s2k_count = pkt[12];
-					if (out.encdatalen != 0)
-						return 0; // error: already seen within context
-					tmcg_openpgp_mem_alloc += (pkt.size() - 13);
-					if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-					{
-						tmcg_openpgp_mem_alloc -= (pkt.size() - 13);
-						return 0; // error: memory limit exceeded
-					}
-					out.encdatalen = pkt.size() - 13;
-					if (out.encdatalen == 0)
-						break; // no encrypted session key
-					out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
-					for (size_t i = 0; i < out.encdatalen; i++)
-						out.encdata[i] = pkt[13+i];
-				}
-				else
-					return 0; // unknown S2K specifier
-			}
-			else if (out.version == 5)
-			{
-				// AEAD SKESK [draft RFC 4880bis]
-				if (pkt.size() < 5)
-					return 0; // error: packet too short
-				out.skalgo = (tmcg_openpgp_skalgo_t)pkt[1];
-				out.aeadalgo = (tmcg_openpgp_aeadalgo_t)pkt[2];
-				out.s2k_type = (tmcg_openpgp_stringtokey_t)pkt[3];
-				out.s2k_hashalgo = (tmcg_openpgp_hashalgo_t)pkt[4];
-				if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_SIMPLE)
-				{
-					// Simple S2K -- forbidden by RFC 4880 (only for completeness)
-					size_t ivlen = AlgorithmIVLength(out.aeadalgo);
-					if (pkt.size() < (5 + ivlen))
-						return 0; // error: no IV
-					if (ivlen > sizeof(out.iv))
-						return 0; // error: IV too long
-					for (size_t i = 0; i < ivlen; i++)
-						out.iv[i] = pkt[5+i];
-					if (out.encdatalen != 0)
-						return 0; // error: already seen within context
-					tmcg_openpgp_mem_alloc += (pkt.size() - 5 - ivlen);
-					if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-					{
-						tmcg_openpgp_mem_alloc -= (pkt.size() - 5 - ivlen);
-						return 0; // error: memory limit exceeded
-					}
-					out.encdatalen = pkt.size() - 5 - ivlen;
-					if (out.encdatalen == 0)
-						return 0; // error: no encrypted session key
-					out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
-					for (size_t i = 0; i < out.encdatalen; i++)
-						out.encdata[i] = pkt[5+ivlen+i];
-				}
-				else if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_SALTED)
-				{
-					// Salted S2K
-					if (pkt.size() < 13)
-						return 0; // error: no salt
-					for (size_t i = 0; i < 8; i++)
-						out.s2k_salt[i] = pkt[5+i];
-					size_t ivlen = AlgorithmIVLength(out.aeadalgo);
-					if (pkt.size() < (13 + ivlen))
-						return 0; // error: no IV
-					if (ivlen > sizeof(out.iv))
-						return 0; // error: IV too long
-					for (size_t i = 0; i < ivlen; i++)
-						out.iv[i] = pkt[13+i];
-					if (out.encdatalen != 0)
-						return 0; // error: already seen within context
-					tmcg_openpgp_mem_alloc += (pkt.size() - 13 - ivlen);
-					if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-					{
-						tmcg_openpgp_mem_alloc -= (pkt.size() - 13 - ivlen);
-						return 0; // error: memory limit exceeded
-					}
-					out.encdatalen = pkt.size() - 13 - ivlen;
-					if (out.encdatalen == 0)
-						return 0; // error: no encrypted session key
-					out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
-					for (size_t i = 0; i < out.encdatalen; i++)
-						out.encdata[i] = pkt[13+ivlen+i];
-				}
-				else if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_ITERATED)
-				{
-					// Iterated and Salted S2K
-					if (pkt.size() < 13)
-						return 0; // error: no salt
-					for (size_t i = 0; i < 8; i++)
-						out.s2k_salt[i] = pkt[5+i];
-					if (pkt.size() < 14)
-						return 0; // error: no count
-					out.s2k_count = pkt[13];
-					size_t ivlen = AlgorithmIVLength(out.aeadalgo);
-					if (pkt.size() < (14 + ivlen))
-						return 0; // error: no IV
-					if (ivlen > sizeof(out.iv))
-						return 0; // error: IV too long
-					for (size_t i = 0; i < ivlen; i++)
-						out.iv[i] = pkt[14+i];
-					if (out.encdatalen != 0)
-						return 0; // error: already seen within context
-					tmcg_openpgp_mem_alloc += (pkt.size() - 14 - ivlen);
-					if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-					{
-						tmcg_openpgp_mem_alloc -= (pkt.size() - 14 - ivlen);
-						return 0; // error: memory limit exceeded
-					}
-					out.encdatalen = pkt.size() - 14 - ivlen;
-					if (out.encdatalen == 0)
-						return 0; // error: no encrypted session key
-					out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
-					for (size_t i = 0; i < out.encdatalen; i++)
-						out.encdata[i] = pkt[14+ivlen+i];
-				}
-				else
-					return 0; // unknown S2K specifier	
-			}
-			else
-				return 0; // error: version not supported
+			ret = PacketDecodeTag3(pkt, out);
 			break;
 		case 4: // One-Pass Signature Packet
-			if (pkt.size() != 13)
-				return 0; // error: incorrect packet body
-			out.version = pkt[0];
-			if (out.version != 3)
-				return 0; // error: version not supported
-			out.type = (tmcg_openpgp_signature_t)pkt[1];
-			out.hashalgo = (tmcg_openpgp_hashalgo_t)pkt[2];
-			out.pkalgo = (tmcg_openpgp_pkalgo_t)pkt[3];
-			for (size_t i = 0; i < 8; i++)
-				out.signingkeyid[i] = pkt[4+i];
-			out.nestedsignature = pkt[12];
+			ret = PacketDecodeTag4(pkt, out);
 			break;
 		case 5: // Secret-Key Packet
 		case 7: // Secret-Subkey Packet
-			if (pkt.size() < 10)
-				return 0; // error: incorrect packet body
-			out.version = pkt[0];
-			out.keycreationtime = (pkt[1] << 24) +
-				(pkt[2] << 16) + (pkt[3] << 8) + pkt[4];
-			out.pkalgo = (tmcg_openpgp_pkalgo_t)pkt[5];
-			if (out.version == 4)
-			{
-				pkt_offset = 6;
-			}
-			else if (out.version == 5)
-			{
-				pkt_offset = 10;
-			}
-			else
-				return 0; // error: version not supported
-			mpis.insert(mpis.end(), pkt.begin()+pkt_offset, pkt.end());
-			if ((out.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
-			    (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_ENCRYPT_ONLY) ||
-			    (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
-			{
-				// Algorithm-Specific Fields for RSA keys
-				mlen = PacketMPIDecode(mpis, out.n);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.e);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-			}
-			else if (out.pkalgo == TMCG_OPENPGP_PKALGO_ELGAMAL)
-			{
-				// Algorithm-Specific Fields for Elgamal keys
-				mlen = PacketMPIDecode(mpis, out.p);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.g);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.y);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-			}
-			else if (out.pkalgo == TMCG_OPENPGP_PKALGO_DSA)
-			{
-				// Algorithm-Specific Fields for DSA keys
-				mlen = PacketMPIDecode(mpis, out.p);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.q);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.g);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.y);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-			}
-			else if (out.pkalgo == TMCG_OPENPGP_PKALGO_ECDH)
-			{
-				// Algorithm-Specific Fields for ECDH keys [RFC 6637]
-				out.curveoidlen = (tmcg_openpgp_pkalgo_t)pkt[pkt_offset];
-				if ((out.curveoidlen == 0) || (out.curveoidlen == 255))
-					return 0; // error: values reserved for future extensions
-				if (pkt.size() < (pkt_offset + 1 + out.curveoidlen))
-					return 0; // error: OID too short
-				for (size_t i = 0; i < out.curveoidlen; i++)
-					out.curveoid[i] = pkt[pkt_offset+1+i];
-				mpis.clear();
-				mpis.insert(mpis.end(),
-					pkt.begin()+pkt_offset+1+out.curveoidlen, pkt.end());
-				mlen = PacketMPIDecode(mpis, out.ecpk);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				if (mpis.size() < 4)
-					return 0; // error: bad KDF params size
-				if (mpis[0] != 0x03)
-					return 0; // error: bad KDF size
-				if (mpis[1] != 0x01)
-					return 0; // error: bad KDF extensions
-				out.kdf_hashalgo = (tmcg_openpgp_hashalgo_t)mpis[2];
-				out.kdf_skalgo = (tmcg_openpgp_skalgo_t)mpis[3];
-				mpis.erase(mpis.begin(), mpis.begin()+4);
-			}
-			else if ((out.pkalgo == TMCG_OPENPGP_PKALGO_ECDSA) ||
-				(out.pkalgo == TMCG_OPENPGP_PKALGO_EDDSA))
-			{
-				// Algorithm-Specific Fields for ECDSA keys [RFC 6637]
-				// Algorithm-Specific Fields for EdDSA keys [draft RFC 4880bis]
-				out.curveoidlen = (tmcg_openpgp_pkalgo_t)pkt[pkt_offset];
-				if ((out.curveoidlen == 0) || (out.curveoidlen == 255))
-					return 0; // error: values reserved for future extensions
-				if (pkt.size() < (pkt_offset + 1 + out.curveoidlen))
-					return 0; // error: OID too short
-				for (size_t i = 0; i < out.curveoidlen; i++)
-					out.curveoid[i] = pkt[pkt_offset+1+i];
-				mpis.clear();
-				mpis.insert(mpis.end(),
-					pkt.begin()+pkt_offset+1+out.curveoidlen, pkt.end());
-				mlen = PacketMPIDecode(mpis, out.ecpk);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-			}
-			else if (out.pkalgo == TMCG_OPENPGP_PKALGO_EXPERIMENTAL7)
-			{
-				// Algorithm-Specific Fields for new tDSS/DSA keys
-				mlen = PacketMPIDecode(mpis, out.p);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.q);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.g);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.h);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.y);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.n);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.t);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.i);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.qualsize);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				size_t qs = tmcg_get_gcry_mpi_ui(out.qualsize);
-				if (qs > 255)
-					return 0; // error: too many parties
-				qual.resize(qs);
-				for (size_t j = 0; j < qs; j++)
-				{
-					mlen = PacketMPIDecode(mpis, qual[j]);
-					if (!mlen || (mlen > mpis.size()))
-						return 0; // error: bad mpi
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				}
-				mlen = PacketMPIDecode(mpis, out.x_rvss_qualsize);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				size_t xqs =
-					tmcg_get_gcry_mpi_ui(out.x_rvss_qualsize);
-				if (xqs > 255)
-					return 0; // error: too many parties
-				x_rvss_qual.resize(xqs);
-				for (size_t j = 0; j < xqs; j++)
-				{
-					mlen = PacketMPIDecode(mpis, x_rvss_qual[j]);
-					if (!mlen || (mlen > mpis.size()))
-						return 0; // error
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				}
-				size_t n = tmcg_get_gcry_mpi_ui(out.n);
-				size_t t = tmcg_get_gcry_mpi_ui(out.t);
-				if ((n > 255) || (t > 128) ||
-				    (tmcg_get_gcry_mpi_ui(out.i) >= n))
-				{
-					return 0; // error: too many parties, 
-					          //        bad threshold/index
-				}
-				capl.clear();
-				for (size_t j = 0; j < n; j++)
-				{
-					std::string peerid;
-					mlen = PacketStringDecode(mpis, peerid);
-					if (!mlen || (mlen > mpis.size()))
-						return 0; // error
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-					capl.push_back(peerid);
-				}
-				c_ik.resize(n);
-				for (size_t j = 0; j < n; j++)
-				{
-					c_ik[j].resize(t + 1);
-					for (size_t k = 0; k <= t; k++)
-					{
-						mlen = PacketMPIDecode(mpis, c_ik[j][k]);
-						if (!mlen || (mlen > mpis.size()))
-							return 0; // error
-						mpis.erase(mpis.begin(), mpis.begin()+mlen);
-					}
-				}
-			}
-			else if (out.pkalgo == TMCG_OPENPGP_PKALGO_EXPERIMENTAL8)
-			{
-				// Algorithm-Specific Fields for old tDSS/DSA keys
-				mlen = PacketMPIDecode(mpis, out.p);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.q);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.g);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.h);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.y);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.n);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.t);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.i);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.qualsize);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				size_t qs = tmcg_get_gcry_mpi_ui(out.qualsize);
-				if (qs > 255)
-					return 0; // error: too many parties
-				qual.resize(qs);
-				for (size_t j = 0; j < qs; j++)
-				{
-					mlen = PacketMPIDecode(mpis, qual[j]);
-					if (!mlen || (mlen > mpis.size()))
-						return 0; // error
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				}
-				capl.clear();
-				for (size_t j = 0; j < qs; j++)
-				{
-					std::string peerid;
-					mlen = PacketStringDecode(mpis, peerid);
-					if (!mlen || (mlen > mpis.size()))
-						return 0; // error
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-					capl.push_back(peerid);
-				}
-				size_t n = tmcg_get_gcry_mpi_ui(out.n);
-				size_t t = tmcg_get_gcry_mpi_ui(out.t);
-				if ((n > 255) || (t > 128))
-					return 0; // error: too many parties
-				c_ik.resize(n);
-				for (size_t j = 0; j < n; j++)
-				{
-					c_ik[j].resize(t + 1);
-					for (size_t k = 0; k <= t; k++)
-					{
-						mlen = PacketMPIDecode(mpis, c_ik[j][k]);
-						if (!mlen || (mlen > mpis.size()))
-							return 0; // error
-						mpis.erase(mpis.begin(), mpis.begin()+mlen);
-					}
-				}
-			}
-			else if (out.pkalgo == TMCG_OPENPGP_PKALGO_EXPERIMENTAL9)
-			{
-				// Algorithm-Specific Fields for tElG keys
-				mlen = PacketMPIDecode(mpis, out.p);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.q);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.g);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.h);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.y);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.n);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.t);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.i);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.qualsize);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				size_t qs = tmcg_get_gcry_mpi_ui(out.qualsize);
-				if (qs > 255)
-					return 0; // error: too many parties
-				qual.resize(qs);
-				for (size_t j = 0; j < qs; j++)
-				{
-					mlen = PacketMPIDecode(mpis, qual[j]);
-					if (!mlen || (mlen > mpis.size()))
-						return 0; // error
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				}
-				size_t n = tmcg_get_gcry_mpi_ui(out.n);
-				size_t t = tmcg_get_gcry_mpi_ui(out.t);
-				if ((n > 255) || (t > 128))
-					return 0; // error: too many parties
-				v_i.resize(n);
-				for (size_t j = 0; j < n; j++)
-				{
-					mlen = PacketMPIDecode(mpis, v_i[j]);
-					if (!mlen || (mlen > mpis.size()))
-						return 0; // error
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				}
-				c_ik.resize(n);
-				for (size_t j = 0; j < n; j++)
-				{
-					c_ik[j].resize(t + 1);
-					for (size_t k = 0; k <= t; k++)
-					{
-						mlen = PacketMPIDecode(mpis, c_ik[j][k]);
-						if (!mlen || (mlen > mpis.size()))
-							return 0; // error
-						mpis.erase(mpis.begin(), mpis.begin()+mlen);
-					}
-				}
-			}
-			else
-				return 0; // error: unsupported public-key algo
-			// secret fields
-			if (mpis.size() < 1)
-				return 0; // error: no S2K convention
-			out.s2kconv = mpis[0];
-			mpis.erase(mpis.begin(), mpis.begin()+1);
-			if (out.version == 5)
-			{
-				if (out.s2kconv == 255)
-					return 0; // error: forbidden by spec (RFC4880bis)
-				mpis.erase(mpis.begin(), mpis.begin()+1); // skip octet count
-			}
-			if (out.s2kconv == 0)
-			{
-				if (out.version == 5)
-				{
-					if (mpis.size() < 4)
-						return 0; // error: no v5 octet count
-					mpis.erase(mpis.begin(), mpis.begin()+4); // skip octet count
-				}
-				tmcg_openpgp_secure_octets_t smpis;
-				for (size_t i = 0; i < mpis.size(); i++)
-					smpis.push_back(mpis[i]); // copy
-				// not encrypted + checksum
-				size_t chksum = 0;
-				if ((out.pkalgo == TMCG_OPENPGP_PKALGO_ELGAMAL) ||
-				    (out.pkalgo == TMCG_OPENPGP_PKALGO_DSA))
-				{
-					// Algorithm-Specific Fields for Elgamal
-					// Algorithm-Specific Fields for DSA
-					mlen = PacketMPIDecode(smpis, out.x, chksum);
-					if (!mlen || (mlen > smpis.size()))
-						return 0; // error: bad mpi
-					smpis.erase(smpis.begin(), smpis.begin()+mlen);
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				}
-				else if ((out.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
-				         (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_ENCRYPT_ONLY) ||
-				         (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
-				{
-					// Algorithm-Specific Fields for RSA
-					mlen = PacketMPIDecode(smpis, out.d, chksum);
-					if (!mlen || (mlen > smpis.size()))
-						return 0; // error: bad mpi
-					smpis.erase(smpis.begin(), smpis.begin()+mlen);
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-					mlen = PacketMPIDecode(smpis, out.p, chksum);
-					if (!mlen || (mlen > smpis.size()))
-						return 0; // error: bad mpi
-					smpis.erase(smpis.begin(), smpis.begin()+mlen);
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-					mlen = PacketMPIDecode(smpis, out.q, chksum);
-					if (!mlen || (mlen > smpis.size()))
-						return 0; // error: bad mpi
-					smpis.erase(smpis.begin(), smpis.begin()+mlen);
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-					mlen = PacketMPIDecode(smpis, out.u, chksum);
-					if (!mlen || (mlen > smpis.size()))
-						return 0; // error: bad mpi
-					smpis.erase(smpis.begin(), smpis.begin()+mlen);
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				}
-				else if ((out.pkalgo == TMCG_OPENPGP_PKALGO_ECDH) ||
-					(out.pkalgo == TMCG_OPENPGP_PKALGO_ECDSA) ||
-					(out.pkalgo == TMCG_OPENPGP_PKALGO_EDDSA))
-				{
-					// Algorithm-Specific Fields for ECDH keys [RFC 6637]
-					// Algorithm-Specific Fields for ECDSA keys [RFC 6637]
-					// Algorithm-Specific Fields for EdDSA [draft RFC 4880bis]
-					mlen = PacketMPIDecode(smpis, out.ecsk, chksum);
-					if (!mlen || (mlen > smpis.size()))
-						return 0; // error: bad mpi
-					smpis.erase(smpis.begin(), smpis.begin()+mlen);
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				}
-				else if ((out.pkalgo == TMCG_OPENPGP_PKALGO_EXPERIMENTAL7) ||
-				         (out.pkalgo == TMCG_OPENPGP_PKALGO_EXPERIMENTAL8) ||
-				         (out.pkalgo == TMCG_OPENPGP_PKALGO_EXPERIMENTAL9))
-				{
-					// Algorithm-Specific Fields tDSS/DKG
-					mlen = PacketMPIDecode(smpis, out.x_i, chksum);
-					if (!mlen || (mlen > smpis.size()))
-						return 0; // error: bad mpi
-					smpis.erase(smpis.begin(), smpis.begin()+mlen);
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-					mlen = PacketMPIDecode(smpis, out.xprime_i, chksum);
-					if (!mlen || (mlen > smpis.size()))
-						return 0; // error: bad mpi
-					smpis.erase(smpis.begin(), smpis.begin()+mlen);
-					mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				}
-				else
-					return 0; // error: algo not supported
-				if (mpis.size() < 2)
-					return 0; // error: no checksum
-				size_t chksum2 = (mpis[0] << 8) + mpis[1];
-				if (chksum != chksum2)
-					return 0; // error: checksum mismatch
-				mpis.erase(mpis.begin(), mpis.begin()+2);
-			}
-			else if ((out.s2kconv == 253) || (out.s2kconv == 254) ||
-				(out.s2kconv == 255))
-			{
-				// encrypted + AEAD or SHA-1 hash or checksum
-				if (mpis.size() < 1)
-					return 0; // error: no sym. algorithm
-				out.skalgo = (tmcg_openpgp_skalgo_t)mpis[0];
-				mpis.erase(mpis.begin(), mpis.begin()+1);
-				if (out.s2kconv == 253)
-				{
-					if (mpis.size() < 1)
-						return 0; // error: no AEAD algorithm
-					out.aeadalgo = (tmcg_openpgp_aeadalgo_t)mpis[0];
-					mpis.erase(mpis.begin(), mpis.begin()+1);
-				}
-				if (mpis.size() < 2)
-					return 0; // error: bad S2K specifier
-				out.s2k_type = (tmcg_openpgp_stringtokey_t)mpis[0];
-				out.s2k_hashalgo = (tmcg_openpgp_hashalgo_t)mpis[1];
-				mpis.erase(mpis.begin(), mpis.begin()+2);
-				if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_SIMPLE)
-				{
-					// Simple S2K
-				}
-				else if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_SALTED)
-				{
-					// Salted S2K
-					if (mpis.size() < 8)
-						return 0; // error: no salt
-					for (size_t i = 0; i < 8; i++)
-						out.s2k_salt[i] = mpis[i];
-					mpis.erase(mpis.begin(), mpis.begin()+8);
-				}
-				else if (out.s2k_type == TMCG_OPENPGP_STRINGTOKEY_ITERATED)
-				{
-					// Iterated and Salted S2K
-					if (mpis.size() < 8)
-						return 0; // error: no salt
-					for (size_t i = 0; i < 8; i++)
-						out.s2k_salt[i] = mpis[i];
-					mpis.erase(mpis.begin(), mpis.begin()+8);
-					if (mpis.size() < 1)
-						return 0; // error: no count
-					out.s2k_count = mpis[0];
-					mpis.erase(mpis.begin(), mpis.begin()+1);
-				}
-				else
-					return 0; // unknown S2K specifier
-				size_t ivlen = AlgorithmIVLength(out.skalgo);
-				if (mpis.size() < ivlen)
-					return 0; // error: no IV
-				if (ivlen > sizeof(out.iv))
-					return 0; // error: IV too long
-				for (size_t i = 0; i < ivlen; i++)
-					out.iv[i] = mpis[i];
-				mpis.erase(mpis.begin(), mpis.begin()+ivlen);
-				if (mpis.size() < 4)
-					return 0; // error: no v5 octet count
-				if (out.version == 5)
-					mpis.erase(mpis.begin(), mpis.begin()+4); // skip v5 octet count
-				if (mpis.size() < 4)
-					return 0; // error: bad encrypted data
-				if (out.encdatalen != 0)
-					return 0; // already seen within context
-				tmcg_openpgp_mem_alloc += mpis.size();
-				if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-				{
-					tmcg_openpgp_mem_alloc -= mpis.size();
-					return 0; // error: memory limit exceeded
-				}
-				out.encdatalen = mpis.size();
-				out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
-				for (size_t i = 0; i < out.encdatalen; i++)
-					out.encdata[i] = mpis[i];
-			}
-			else
-				return 0; // S2K convention not supported
+			ret = PacketDecodeTag57(pkt, tag, out,
+				qual, x_rvss_qual, capl, v_i, c_ik);
 			break;
 		case 6: // Public-Key Packet
 		case 14: // Public-Subkey Packet
-			if (pkt.size() < 10)
-				return 0; // error: incorrect packet body
-			out.version = pkt[0];
-			out.keycreationtime = (pkt[1] << 24) +
-				(pkt[2] << 16) + (pkt[3] << 8) + pkt[4];
-			out.pkalgo = (tmcg_openpgp_pkalgo_t)pkt[5];
-			if (out.version == 4)
-			{
-				pkt_offset = 6;
-			}
-			else if (out.version == 5)
-			{
-				pkt_offset = 10;
-			}
-			else
-				return 0; // error: version not supported
-			mpis.insert(mpis.end(), pkt.begin()+pkt_offset, pkt.end());
-			if ((out.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
-			    (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_ENCRYPT_ONLY) ||
-			    (out.pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
-			{
-				// Algorithm-Specific Fields for RSA keys
-				mlen = PacketMPIDecode(mpis, out.n);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.e);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-			}
-			else if (out.pkalgo == TMCG_OPENPGP_PKALGO_ELGAMAL)
-			{
-				// Algorithm-Specific Fields for Elgamal keys
-				mlen = PacketMPIDecode(mpis, out.p);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.g);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.y);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-			}
-			else if (out.pkalgo == TMCG_OPENPGP_PKALGO_DSA)
-			{
-				// Algorithm-Specific Fields for DSA keys
-				mlen = PacketMPIDecode(mpis, out.p);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.q);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.g);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				mlen = PacketMPIDecode(mpis, out.y);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-			}
-			else if (out.pkalgo == TMCG_OPENPGP_PKALGO_ECDH)
-			{
-				// Algorithm-Specific Fields for ECDH keys [RFC 6637]
-				out.curveoidlen = (tmcg_openpgp_pkalgo_t)pkt[pkt_offset];
-				if ((out.curveoidlen == 0) || (out.curveoidlen == 255))
-					return 0; // error: values reserved for future extensions
-				if (pkt.size() < (pkt_offset + 1 + out.curveoidlen))
-					return 0; // error: OID too short
-				for (size_t i = 0; i < out.curveoidlen; i++)
-					out.curveoid[i] = pkt[pkt_offset+1+i];
-				mpis.clear();
-				mpis.insert(mpis.end(),
-					pkt.begin()+pkt_offset+1+out.curveoidlen, pkt.end());
-				mlen = PacketMPIDecode(mpis, out.ecpk);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-				if (mpis.size() != 4)
-					return 0; // error: bad KDF params size
-				if (mpis[0] != 0x03)
-					return 0; // error: bad KDF size
-				if (mpis[1] != 0x01)
-					return 0; // error: bad KDF extensions
-				out.kdf_hashalgo = (tmcg_openpgp_hashalgo_t)mpis[2];
-				out.kdf_skalgo = (tmcg_openpgp_skalgo_t)mpis[3];
-			}
-			else if ((out.pkalgo == TMCG_OPENPGP_PKALGO_ECDSA) ||
-				(out.pkalgo == TMCG_OPENPGP_PKALGO_EDDSA))
-			{
-				// Algorithm-Specific Fields for ECDSA keys [RFC 6637]
-				// Algorithm-Specific Fields for EdDSA keys [draft RFC 4880bis]
-				out.curveoidlen = (tmcg_openpgp_pkalgo_t)pkt[pkt_offset];
-				if ((out.curveoidlen == 0) || (out.curveoidlen == 255))
-					return 0; // error: values reserved for future extensions
-				if (pkt.size() < (pkt_offset + 1 + out.curveoidlen))
-					return 0; // error: OID too short
-				for (size_t i = 0; i < out.curveoidlen; i++)
-					out.curveoid[i] = pkt[pkt_offset+1+i];
-				mpis.clear();
-				mpis.insert(mpis.end(),
-					pkt.begin()+pkt_offset+1+out.curveoidlen, pkt.end());
-				mlen = PacketMPIDecode(mpis, out.ecpk);
-				if (!mlen || (mlen > mpis.size()))
-					return 0; // error: bad or zero mpi
-				mpis.erase(mpis.begin(), mpis.begin()+mlen);
-			}
-			else
-				return 0xFD; // warning: unsupported algo
+			ret = PacketDecodeTag614(pkt, tag, out);
 			break;
 		case 8: // Compressed Data Packet
-			if (pkt.size() < 2)
-				return 0; // error: incorrect packet body
-			out.compalgo = (tmcg_openpgp_compalgo_t)pkt[0];
-			if (out.compdatalen != 0)
-				return 0; // error: already seen within context
-			tmcg_openpgp_mem_alloc += (pkt.size() - 1);
-			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-			{
-				tmcg_openpgp_mem_alloc -= (pkt.size() - 1);
-				return 0; // error: memory limit exceeded
-			}
-			out.compdatalen = pkt.size() - 1;
-			out.compdata = new tmcg_openpgp_byte_t[out.compdatalen];
-			for (size_t i = 0; i < out.compdatalen; i++)
-				out.compdata[i] = pkt[1+i];
+			ret = PacketDecodeTag8(pkt, out);
 			break;
 		case 9: // Symmetrically Encrypted Data Packet
-			if (pkt.size() == 0)
-				return 0; // error: empty packet body
-			if (out.encdatalen != 0)
-				return 0; // error: already seen within context
-			tmcg_openpgp_mem_alloc += pkt.size();
-			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-			{
-				tmcg_openpgp_mem_alloc -= pkt.size();
-				return 0; // error: memory limit exceeded
-			}
-			out.encdatalen = pkt.size();
-			out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
-			for (size_t i = 0; i < out.encdatalen; i++)
-				out.encdata[i] = pkt[i];
+			ret = PacketDecodeTag9(pkt, out);
 			break;
 		case 10: // Marker Packet
-			if (pkt.size() != 3)
-				return 0; // error: incorrect packet body
-			if ((pkt[0] != 0x50) || (pkt[1] != 0x47) || 
-			    (pkt[3] != 0x50))
-				return 0; // error: bad marker 
+			ret = PacketDecodeTag10(pkt, out);
 			break;
 		case 11: // Literal Data Packet
-			if (pkt.size() < 2)
-				return 0; // error: incorrect packet body
-			out.dataformat = pkt[0];
-			out.datafilenamelen = pkt[1];
-			if (pkt.size() < (out.datafilenamelen + 2))
-				return 0; // error: packet too short
-			for (size_t i = 0; i < out.datafilenamelen; i++)
-				out.datafilename[i] = pkt[2+i];
-			if (pkt.size() < (out.datafilenamelen + 6))
-				return 0; // error: packet too short
-			out.datatime = (pkt[2+out.datafilenamelen] << 24) +
-				(pkt[3+out.datafilenamelen] << 16) +
-				(pkt[4+out.datafilenamelen] << 8) +
-				pkt[5+out.datafilenamelen];
-			if (out.datalen != 0)
-				return 0; // error: already seen within this context
-			tmcg_openpgp_mem_alloc += (pkt.size() - (out.datafilenamelen + 6));
-			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-			{
-				tmcg_openpgp_mem_alloc -= (pkt.size()-(out.datafilenamelen+6));
-				return 0; // error: memory limit exceeded
-			}
-			out.datalen = pkt.size() - (out.datafilenamelen + 6);
-			out.data = new tmcg_openpgp_byte_t[out.datalen];
-			for (size_t i = 0; i < out.datalen; i++)
-				out.data[i] = pkt[6+out.datafilenamelen+i];
+			ret = PacketDecodeTag11(pkt, out);
 			break;
 		case 12: // Trust Packet -- not supported, ignore silently
+			ret = 12;
 			break;
 		case 13: // User ID Packet
-			if (out.uiddatalen != 0)
-				return 0; // error: already seen within context
-			tmcg_openpgp_mem_alloc += pkt.size();
-			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-			{
-				tmcg_openpgp_mem_alloc -= pkt.size();
-				return 0; // error: memory limit exceeded
-			}
-			out.uiddatalen = pkt.size();
-			if (pkt.size() > 0)
-			{
-				out.uiddata = new tmcg_openpgp_byte_t[out.uiddatalen];
-				for (size_t i = 0; i < out.uiddatalen; i++)
-					out.uiddata[i] = pkt[i];
-			}
+			ret = PacketDecodeTag13(pkt, out);
 			break;
 		case 17: // User Attribute Packet
-			if (pkt.size() < 2)
-				return 0; // error: incorrect packet body
-			if (out.uatdatalen != 0)
-				return 0; // error: already seen within context
-			tmcg_openpgp_mem_alloc += pkt.size();
-			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-			{
-				tmcg_openpgp_mem_alloc -= pkt.size();
-				return 0; // error: memory limit exceeded
-			}
-			out.uatdatalen = pkt.size();
-			out.uatdata = new tmcg_openpgp_byte_t[out.uatdatalen];
-			for (size_t i = 0; i < out.uatdatalen; i++)
-				out.uatdata[i] = pkt[i];
+			ret = PacketDecodeTag17(pkt, out);
 			break;
 		case 18: // Sym. Encrypted and Integrity Protected Data Packet
-			if (pkt.size() < 2)
-				return 0; // error: incorrect packet body
-			out.version = pkt[0];
-			if (out.version != 1)
-				return 0; // error: version not supported
-			if (out.encdatalen != 0)
-				return 0; // error: already seen within context
-			tmcg_openpgp_mem_alloc += (pkt.size() - 1);
-			if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-			{
-				tmcg_openpgp_mem_alloc -= (pkt.size() - 1);
-				return 0; // error: memory limit exceeded
-			}
-			out.encdatalen = pkt.size() - 1;
-			out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
-			for (size_t i = 0; i < out.encdatalen; i++)
-				out.encdata[i] = pkt[1+i];
+			ret = PacketDecodeTag18(pkt, out);
 			break;
 		case 19: // Modification Detection Code Packet
-			if (!out.newformat)
-				return 0; // error: wrong format of packet tag
-			if (pkt.size() != 20)
-				return 0; // error: incorrect packet body
-			for (size_t i = 0; i < pkt.size(); i++)
-				out.mdc_hash[i] = pkt[i];
+			ret = PacketDecodeTag19(pkt, out);
 			break;
 		case 20: // AEAD Encrypted Data Packet [draft RFC 4880bis]
-			if (pkt.size() < 4)
-				return 0; // error: packet too short
-			out.version = pkt[0];
-			out.skalgo = (tmcg_openpgp_skalgo_t)pkt[1];
-			out.aeadalgo = (tmcg_openpgp_aeadalgo_t)pkt[2];
-			out.chunksize = pkt[3];
-			if (out.version == 1)
-			{
-				size_t ivlen = AlgorithmIVLength(out.aeadalgo);
-				if (pkt.size() < (4 + ivlen))
-					return 0; // error: no IV
-				if (ivlen > sizeof(out.iv))
-					return 0; // error: IV too long
-				for (size_t i = 0; i < ivlen; i++)
-					out.iv[i] = pkt[4+i];
-				if (out.encdatalen != 0)
-					return 0; // error: already seen within context
-				tmcg_openpgp_mem_alloc += (pkt.size() - 4 - ivlen);
-				if (tmcg_openpgp_mem_alloc > TMCG_OPENPGP_MAX_ALLOC)
-				{
-					tmcg_openpgp_mem_alloc -= (pkt.size() - 4 - ivlen);
-					return 0; // error: memory limit exceeded
-				}
-				out.encdatalen = pkt.size() - 4 - ivlen;
-				if (out.encdatalen == 0)
-					return 0; // error: no encrypted session key
-				out.encdata = new tmcg_openpgp_byte_t[out.encdatalen];
-				for (size_t i = 0; i < out.encdatalen; i++)
-					out.encdata[i] = pkt[4+ivlen+i];
-			}
-			else
-				return 0; // error: version not supported
+			ret = PacketDecodeTag20(pkt, out);
 			break;
 		default:
 			return 0xFE; // warning: unknown packet tag
 	}
+	if (ret != tag)
+		return ret;
 	return tag;
 }
 
@@ -11491,13 +12938,16 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecode
 	 std::vector<std::string> &capl,
 	 std::vector<gcry_mpi_t> &v_i,
 	 std::vector< std::vector<gcry_mpi_t> > &c_ik,
-	 tmcg_openpgp_notations_t &notations)
+	 tmcg_openpgp_notations_t &notations,
+	 tmcg_openpgp_multiple_octets_t &embeddedsigs,
+	 tmcg_openpgp_multiple_octets_t &recipientfprs)
 {
 	std::vector<gcry_mpi_t> x_rvss_qual; // dummy container
 	tmcg_openpgp_byte_t ret;
 
 	ret = PacketDecode(in, verbose, out, current_packet, qual,
-		x_rvss_qual, capl, v_i, c_ik, notations);
+		x_rvss_qual, capl, v_i, c_ik, notations, embeddedsigs,
+		recipientfprs);
 	for (size_t i = 0; i < x_rvss_qual.size(); i++)
 		gcry_mpi_release(x_rvss_qual[i]); // release allocated mpi
 	x_rvss_qual.clear();
@@ -11508,7 +12958,9 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecode
 	(tmcg_openpgp_octets_t &in, const int verbose,
 	 tmcg_openpgp_packet_ctx_t &out,
 	 tmcg_openpgp_octets_t &current_packet,
-	 tmcg_openpgp_notations_t &notations)
+	 tmcg_openpgp_notations_t &notations,
+	 tmcg_openpgp_multiple_octets_t &embeddedsigs,
+	 tmcg_openpgp_multiple_octets_t &recipientfprs)
 {
 	std::vector<gcry_mpi_t> qual; // dummy container
 	std::vector<std::string> capl; // dummy container
@@ -11517,7 +12969,8 @@ tmcg_openpgp_byte_t CallasDonnerhackeFinneyShawThayerRFC4880::PacketDecode
 	tmcg_openpgp_byte_t ret;
 
 	ret = PacketDecode(in, verbose, out, current_packet,
-		qual, capl, v_i, c_ik, notations);
+		qual, capl, v_i, c_ik, notations, embeddedsigs,
+		recipientfprs);
 	for (size_t i = 0; i < qual.size(); i++)
 		gcry_mpi_release(qual[i]); // release allocated mpi
 	qual.clear();
@@ -11562,47 +13015,61 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PacketContextRelease
 	gcry_mpi_release(ctx.x_rvss_qualsize);
 	gcry_mpi_release(ctx.x_i);
 	gcry_mpi_release(ctx.xprime_i);
-	if (ctx.hspd != NULL)
+	if (ctx.hspdlen > 0)
 	{
 		delete [] ctx.hspd;
 		if (tmcg_openpgp_mem_alloc >= ctx.hspdlen)
 			tmcg_openpgp_mem_alloc -= ctx.hspdlen;
+		ctx.hspdlen = 0;
 	}
-	if (ctx.encdata != NULL)
+	if (ctx.encdatalen > 0)
 	{
 		delete [] ctx.encdata;
 		if (tmcg_openpgp_mem_alloc >= ctx.encdatalen)
 			tmcg_openpgp_mem_alloc -= ctx.encdatalen;
+		ctx.encdatalen = 0;
 	}
-	if (ctx.compdata != NULL)
+	if (ctx.compdatalen > 0)
 	{
 		delete [] ctx.compdata;
 		if (tmcg_openpgp_mem_alloc >= ctx.compdatalen)
 			tmcg_openpgp_mem_alloc -= ctx.compdatalen;
+		ctx.compdatalen = 0;
 	}
-	if (ctx.data != NULL)
+	if (ctx.datalen > 0)
 	{
 		delete [] ctx.data;
 		if (tmcg_openpgp_mem_alloc >= ctx.datalen)
 			tmcg_openpgp_mem_alloc -= ctx.datalen;
+		ctx.datalen = 0;
 	}
-	if (ctx.uiddata != NULL)
+	if (ctx.uiddatalen > 0)
 	{
 		delete [] ctx.uiddata;
 		if (tmcg_openpgp_mem_alloc >= ctx.uiddatalen)
 			tmcg_openpgp_mem_alloc -= ctx.uiddatalen;
+		ctx.uiddatalen = 0;
 	}
-	if (ctx.uatdata != NULL)
+	if (ctx.uatdatalen > 0)
 	{
 		delete [] ctx.uatdata;
 		if (tmcg_openpgp_mem_alloc >= ctx.uatdatalen)
 			tmcg_openpgp_mem_alloc -= ctx.uatdatalen;
+		ctx.uatdatalen = 0;
 	}
-	if (ctx.embeddedsignature != NULL)
+	if (ctx.embeddedsignaturelen > 0)
 	{
 		delete [] ctx.embeddedsignature;
 		if (tmcg_openpgp_mem_alloc >= ctx.embeddedsignaturelen)
 			tmcg_openpgp_mem_alloc -= ctx.embeddedsignaturelen;
+		ctx.embeddedsignaturelen = 0;
+	}
+	if (ctx.attestedcertificationslen > 0)
+	{
+		delete [] ctx.attestedcertifications;
+		if (tmcg_openpgp_mem_alloc >= ctx.attestedcertificationslen)
+			tmcg_openpgp_mem_alloc -= ctx.attestedcertificationslen;
+		ctx.attestedcertificationslen = 0;
 	}
 }
 
@@ -11687,7 +13154,8 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::BinaryDocumentHash
 	// Signature packet (note that this number does not include these final
 	// six octets).
 	hash_input.push_back(0x04);
-	FixedLengthEncode(trailer.size(), hash_input);
+	hash_input.push_back(0xFF);
+	PacketScalarFourEncode(trailer.size(), hash_input);
 	// After all this has been hashed in a single hash context, the
 	// resulting hash field is used in the signature algorithm and placed
 	// at the end of the Signature packet.
@@ -11724,7 +13192,8 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::BinaryDocumentHash
 	// Signature packet (note that this number does not include these final
 	// six octets).
 	hash_input.push_back(0x04);
-	FixedLengthEncode(trailer.size(), hash_input);
+	hash_input.push_back(0xFF);
+	PacketScalarFourEncode(trailer.size(), hash_input);
 	// After all this has been hashed in a single hash context, the
 	// resulting hash field is used in the signature algorithm and placed
 	// at the end of the Signature packet.
@@ -11867,7 +13336,8 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::TextDocumentHash
 	// Signature packet (note that this number does not include these final
 	// six octets).
 	hash_input.push_back(0x04);
-	FixedLengthEncode(trailer.size(), hash_input);
+	hash_input.push_back(0xFF);
+	PacketScalarFourEncode(trailer.size(), hash_input);
 	// After all this has been hashed in a single hash context, the
 	// resulting hash field is used in the signature algorithm and placed
 	// at the end of the Signature packet.
@@ -11912,7 +13382,8 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::TextDocumentHash
 	// Signature packet (note that this number does not include these final
 	// six octets).
 	hash_input.push_back(0x04);
-	FixedLengthEncode(trailer.size(), hash_input);
+	hash_input.push_back(0xFF);
+	PacketScalarFourEncode(trailer.size(), hash_input);
 	// After all this has been hashed in a single hash context, the
 	// resulting hash field is used in the signature algorithm and placed
 	// at the end of the Signature packet.
@@ -12023,7 +13494,8 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::StandaloneHash
 	// Signature packet (note that this number does not include these final
 	// six octets).
 	hash_input.push_back(0x04);
-	FixedLengthEncode(trailer.size(), hash_input);
+	hash_input.push_back(0xFF);
+	PacketScalarFourEncode(trailer.size(), hash_input);
 	HashCompute(hashalgo, hash_input, hash);
 	// After all this has been hashed in a single hash context, the
 	// resulting hash field is used in the signature algorithm and placed
@@ -12096,7 +13568,6 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::CertificationHash
 	 tmcg_openpgp_octets_t &hash, tmcg_openpgp_octets_t &left)
 {
 	tmcg_openpgp_octets_t hash_input;
-	size_t uidlen = uid.length();
 
 	// When a signature is made over a key, the hash data starts with the
 	// octet 0x99, followed by a two-octet length of the key, and then body
@@ -12116,11 +13587,11 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::CertificationHash
 	if (uat.size() == 0)
 	{
 		hash_input.push_back(0xB4);
-		hash_input.push_back((uidlen >> 24) & 0xFF);
-		hash_input.push_back((uidlen >> 16) & 0xFF);
-		hash_input.push_back((uidlen >> 8) & 0xFF);
-		hash_input.push_back(uidlen & 0xFF);
-		for (size_t i = 0; i < uidlen; i++)
+		hash_input.push_back((uid.length() >> 24) & 0xFF);
+		hash_input.push_back((uid.length() >> 16) & 0xFF);
+		hash_input.push_back((uid.length() >> 8) & 0xFF);
+		hash_input.push_back(uid.length() & 0xFF);
+		for (size_t i = 0; i < uid.length(); i++)
 			hash_input.push_back(uid[i]);
 	}
 	else
@@ -12146,7 +13617,8 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::CertificationHash
 	// Signature packet (note that this number does not include these final
 	// six octets).
 	hash_input.push_back(0x04);
-	FixedLengthEncode(trailer.size(), hash_input);
+	hash_input.push_back(0xFF);
+	PacketScalarFourEncode(trailer.size(), hash_input);
 	// After all this has been hashed in a single hash context, the
 	// resulting hash field is used in the signature algorithm and placed
 	// at the end of the Signature packet.
@@ -12162,7 +13634,6 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::CertificationHashV5
 	 tmcg_openpgp_octets_t &hash, tmcg_openpgp_octets_t &left)
 {
 	tmcg_openpgp_octets_t hash_input;
-	size_t uidlen = uid.length();
 
 	hash_input.push_back(0x9A);
 	hash_input.push_back((key.size() >> 24) & 0xFF);
@@ -12173,11 +13644,11 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::CertificationHashV5
 	if (uat.size() == 0)
 	{
 		hash_input.push_back(0xB4);
-		hash_input.push_back((uidlen >> 24) & 0xFF);
-		hash_input.push_back((uidlen >> 16) & 0xFF);
-		hash_input.push_back((uidlen >> 8) & 0xFF);
-		hash_input.push_back(uidlen & 0xFF);
-		for (size_t i = 0; i < uidlen; i++)
+		hash_input.push_back((uid.length() >> 24) & 0xFF);
+		hash_input.push_back((uid.length() >> 16) & 0xFF);
+		hash_input.push_back((uid.length() >> 8) & 0xFF);
+		hash_input.push_back(uid.length() & 0xFF);
+		for (size_t i = 0; i < uid.length(); i++)
 			hash_input.push_back(uid[i]);
 	}
 	else
@@ -12275,7 +13746,8 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::KeyHash
 	// Signature packet (note that this number does not include these final
 	// six octets).
 	hash_input.push_back(0x04);
-	FixedLengthEncode(trailer.size(), hash_input);
+	hash_input.push_back(0xFF);
+	PacketScalarFourEncode(trailer.size(), hash_input);
 	// After all this has been hashed in a single hash context, the
 	// resulting hash field is used in the signature algorithm and placed
 	// at the end of the Signature packet.
@@ -12391,7 +13863,8 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::KeyHash
 	// Signature packet (note that this number does not include these final
 	// six octets).
 	hash_input.push_back(0x04);
-	FixedLengthEncode(trailer.size(), hash_input);
+	hash_input.push_back(0xFF);
+	PacketScalarFourEncode(trailer.size(), hash_input);
 	// After all this has been hashed in a single hash context, the
 	// resulting hash field is used in the signature algorithm and placed
 	// at the end of the Signature packet.
@@ -12481,7 +13954,7 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAES256
 			chksum += buf[i];
 		}
 		chksum %= 65536;
-		size_t key_chksum = (seskey[33] << 8) + seskey[34];
+		size_t key_chksum = (seskey[1+ks] << 8) + seskey[2+ks];
 		if (chksum != key_chksum)
 		{
 			gcry_free(buf);
@@ -12685,7 +14158,7 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAEAD
 			chksum += buf[i];
 		}
 		chksum %= 65536;
-		size_t key_chksum = (seskey[33] << 8) + seskey[34];
+		size_t key_chksum = (seskey[1+ks] << 8) + seskey[2+ks];
 		if (chksum != key_chksum)
 		{
 			gcry_free(buf);
@@ -12723,12 +14196,7 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAEAD
 #endif
 			break;
 		case TMCG_OPENPGP_AEADALGO_OCB:
-#if GCRYPT_VERSION_NUMBER < 0x010700
-			// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-			ciphermode = (enum gcry_cipher_modes)11;
-#else
 			ciphermode = GCRY_CIPHER_MODE_OCB;
-#endif
 			break;
 		default:
 			return gcry_error(GPG_ERR_INV_CIPHER_MODE); // error: bad algorithm
@@ -12755,10 +14223,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAEAD
 		return ret;
 	}
 	size_t taglen = 0;
-#if GCRYPT_VERSION_NUMBER < 0x010700
-	// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-	taglen = 16;
-#else
 	ret = gcry_cipher_info(hd, GCRYCTL_GET_TAGLEN, NULL, &taglen);
 	if (ret)
 	{
@@ -12766,7 +14230,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAEAD
 		gcry_cipher_close(hd);
 		return ret;
 	}
-#endif
 	if (taglen != 16)
 	{
 		gcry_free(buf);
@@ -12819,9 +14282,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAEAD
 			gcry_cipher_close(hd);
 			return ret;
 		}
-#if GCRYPT_VERSION_NUMBER < 0x010700
-		// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
 		ret = gcry_cipher_final(hd);
 		if (ret)
 		{
@@ -12829,7 +14289,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAEAD
 			gcry_cipher_close(hd);
 			return ret;
 		}
-#endif
 		if (in.size() < 1)
 		{
 			gcry_free(buf);
@@ -12979,9 +14438,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAEAD
 				gcry_cipher_close(hd);
 				return ret;
 			}
-#if GCRYPT_VERSION_NUMBER < 0x010700
-		// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
 			ret = gcry_cipher_final(hd);
 			if (ret)
 			{
@@ -12989,7 +14445,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAEAD
 				gcry_cipher_close(hd);
 				return ret;
 			}
-#endif
 			if (in.size() < (nbytes + chunkdim))
 			{
 				gcry_free(buf);
@@ -13099,9 +14554,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAEAD
 			gcry_cipher_close(hd);
 			return ret;
 		}
-#if GCRYPT_VERSION_NUMBER < 0x010700
-		// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
 		ret = gcry_cipher_final(hd);
 		if (ret)
 		{
@@ -13109,7 +14561,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAEAD
 			gcry_cipher_close(hd);
 			return ret;
 		}
-#endif
 		if (in.size() <= nbytes)
 		{
 			gcry_free(buf);
@@ -13179,7 +14630,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAEAD
 		}
 		if (verbose > 2)
 			std::cerr << std::dec << std::endl;
-		nbytes += len;
 
 		// now create the final authentication tag
 		uint64_t totalbytes = (chunks * chunkdim) + len;
@@ -13244,9 +14694,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAEAD
 			gcry_cipher_close(hd);
 			return ret;
 		}
-#if GCRYPT_VERSION_NUMBER < 0x010700
-		// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
 		ret = gcry_cipher_final(hd); // tell decrypt that it's the final call
 		if (ret)
 		{
@@ -13254,7 +14701,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricEncryptAEAD
 			gcry_cipher_close(hd);
 			return ret;
 		}
-#endif
 		ret = gcry_cipher_encrypt(hd, outbuf, 0, NULL, 0); // empty string
 		if (ret)
 		{
@@ -13328,7 +14774,7 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricDecrypt
 			chksum += buf[i];
 		}
 		chksum %= 65536;
-		size_t key_chksum = (seskey[33] << 8) + seskey[34];
+		size_t key_chksum = (seskey[1+ks] << 8) + seskey[2+ks];
 		if (chksum != key_chksum)
 		{
 			gcry_free(buf);
@@ -13530,7 +14976,7 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricDecryptAEAD
 			chksum += buf[i];
 		}
 		chksum %= 65536;
-		size_t key_chksum = (seskey[33] << 8) + seskey[34];
+		size_t key_chksum = (seskey[1+ks] << 8) + seskey[2+ks];
 		if (chksum != key_chksum)
 		{
 			gcry_free(buf);
@@ -13561,12 +15007,7 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricDecryptAEAD
 #endif
 			break;
 		case TMCG_OPENPGP_AEADALGO_OCB:
-#if GCRYPT_VERSION_NUMBER < 0x010700
-			// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-			ciphermode = (enum gcry_cipher_modes)11;
-#else
 			ciphermode = GCRY_CIPHER_MODE_OCB;
-#endif
 			break;
 		default:
 			return gcry_error(GPG_ERR_INV_CIPHER_MODE); // error: bad algorithm
@@ -13593,10 +15034,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricDecryptAEAD
 		return ret;
 	}
 	size_t taglen = 0;
-#if GCRYPT_VERSION_NUMBER < 0x010700
-	// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-	taglen = 16;
-#else
 	ret = gcry_cipher_info(hd, GCRYCTL_GET_TAGLEN, NULL, &taglen);
 	if (ret)
 	{
@@ -13604,7 +15041,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricDecryptAEAD
 		gcry_cipher_close(hd);
 		return ret;
 	}
-#endif
 	if (taglen != 16)
 	{
 		gcry_free(buf);
@@ -13656,9 +15092,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricDecryptAEAD
 			gcry_cipher_close(hd);
 			return ret;
 		}
-#if GCRYPT_VERSION_NUMBER < 0x010700
-		// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
 		ret = gcry_cipher_final(hd);
 		if (ret)
 		{
@@ -13666,7 +15099,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricDecryptAEAD
 			gcry_cipher_close(hd);
 			return ret;
 		}
-#endif
 		if (in.size() < (1 + taglen))
 		{
 			gcry_free(buf);
@@ -13801,9 +15233,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricDecryptAEAD
 				gcry_cipher_close(hd);
 				return ret;
 			}
-#if GCRYPT_VERSION_NUMBER < 0x010700
-		// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
 			ret = gcry_cipher_final(hd);
 			if (ret)
 			{
@@ -13811,7 +15240,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricDecryptAEAD
 				gcry_cipher_close(hd);
 				return ret;
 			}
-#endif
 			if (in.size() < (nbytes + chunkdim + taglen))
 			{
 				gcry_free(buf);
@@ -13893,9 +15321,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricDecryptAEAD
 			gcry_cipher_close(hd);
 			return ret;
 		}
-#if GCRYPT_VERSION_NUMBER < 0x010700
-		// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
 		ret = gcry_cipher_final(hd);
 		if (ret)
 		{
@@ -13903,7 +15328,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricDecryptAEAD
 			gcry_cipher_close(hd);
 			return ret;
 		}
-#endif
 		if (in.size() < (nbytes + taglen + taglen))
 		{
 			gcry_free(buf);
@@ -14024,9 +15448,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricDecryptAEAD
 			gcry_cipher_close(hd);
 			return ret;
 		}
-#if GCRYPT_VERSION_NUMBER < 0x010700
-		// FIXME: remove, if libgcrypt >= 1.7.0 required by configure.ac
-#else
 		ret = gcry_cipher_final(hd); // tell decrypt that it's the final call
 		if (ret)
 		{
@@ -14034,7 +15455,6 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::SymmetricDecryptAEAD
 			gcry_cipher_close(hd);
 			return ret;
 		}
-#endif
 		if (in.size() < (nbytes + taglen))
 		{
 			gcry_free(buf);
@@ -14297,6 +15717,11 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::AsymmetricEncryptECDH
 	for (size_t i = 0; ((i < Z.size()) && (i < bufsize)); i++)
 		buf[i] = Z[i];
 	// compute of C = AESKeyWrap(Z, m) as per [RFC 3394]
+	if (AlgorithmHashLength(hashalgo) == 0)
+	{
+		gcry_free(buf);
+		return gcry_error(GPG_ERR_BAD_PUBKEY); // error: unknown hash algorithm
+	}
 	if (Z.size() < AlgorithmHashLength(hashalgo))
 	{
 		gcry_free(buf);
@@ -14692,7 +16117,7 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::AsymmetricVerifyEdDSA
 	(const tmcg_openpgp_octets_t &in, const gcry_sexp_t key, 
 	 const gcry_mpi_t r, const gcry_mpi_t s)
 {
-	char buf[2048];
+	unsigned char buf[2048];
 	gcry_sexp_t sigdata, signature;
 	gcry_error_t ret;
 	size_t buflen = 0, erroff;
@@ -14703,8 +16128,61 @@ gcry_error_t CallasDonnerhackeFinneyShawThayerRFC4880::AsymmetricVerifyEdDSA
 		"(data (flags eddsa) (hash-algo sha512) (value %b))", (int)buflen, buf);
 	if (ret)
 		return ret;
-	ret = gcry_sexp_build(&signature, &erroff,
-		"(sig-val (eddsa (r %M) (s %M)))", r, s);
+	size_t rlen = (gcry_mpi_get_nbits(r) + 7) / 8;
+	size_t slen = (gcry_mpi_get_nbits(s) + 7) / 8;
+	if ((rlen == 0) || (rlen > 32) || (slen == 0) || (slen > 32))
+		return gcry_error(GPG_ERR_BAD_MPI);
+	gcry_mpi_t rr = NULL, ss = NULL;
+	if (rlen < 32)
+	{
+		size_t rn = 0;
+		ret = gcry_mpi_print(GCRYMPI_FMT_USG, buf, sizeof(buf), &rn, r);
+		if (ret)
+			return ret;
+		if (rn >= 32)
+			return gcry_error(GPG_ERR_BAD_MPI);
+		size_t offset = 32 - rn;
+		memmove(buf + offset, buf, rn);
+		memset (buf, 0, offset);
+		rr = gcry_mpi_set_opaque_copy(NULL, buf, 256);
+	}
+	if (slen < 32)
+	{
+		size_t sn = 0;
+		ret = gcry_mpi_print(GCRYMPI_FMT_USG, buf, sizeof(buf), &sn, s);
+		if (ret)
+			return ret;
+		if (sn >= 32)
+			return gcry_error(GPG_ERR_BAD_MPI);
+		size_t offset = 32 - sn;
+		memmove(buf + offset, buf, sn);
+		memset (buf, 0, offset);
+		ss = gcry_mpi_set_opaque_copy(NULL, buf, 256);
+	}
+	if ((rr != NULL) && (ss != NULL))
+	{
+		ret = gcry_sexp_build(&signature, &erroff,
+			"(sig-val (eddsa (r %M) (s %M)))", rr, ss);
+		gcry_mpi_release(rr);
+		gcry_mpi_release(ss);
+	}
+	else if ((rr != NULL) && (ss == NULL))
+	{
+		ret = gcry_sexp_build(&signature, &erroff,
+			"(sig-val (eddsa (r %M) (s %M)))", rr, s);
+		gcry_mpi_release(rr);
+	}
+	else if ((rr == NULL) && (ss != NULL))
+	{
+		ret = gcry_sexp_build(&signature, &erroff,
+			"(sig-val (eddsa (r %M) (s %M)))", r, ss);
+		gcry_mpi_release(ss);
+	}
+	else
+	{
+		ret = gcry_sexp_build(&signature, &erroff,
+			"(sig-val (eddsa (r %M) (s %M)))", r, s);
+	}
 	if (ret)
 	{
 		gcry_sexp_release(sigdata);
@@ -14820,6 +16298,8 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 	 const bool primary, const bool subkey, const bool badkey,
 	 const bool uid_flag, const bool uat_flag,
 	 const tmcg_openpgp_octets_t &current_packet,
+	 const tmcg_openpgp_multiple_octets_t &embeddedsigs,
+	 const tmcg_openpgp_multiple_octets_t &recipientfprs,
 	 tmcg_openpgp_octets_t &embedded_pkt,
 	 TMCG_OpenPGP_Pubkey* &pub, TMCG_OpenPGP_Subkey* &sub,
 	 TMCG_OpenPGP_UserID* &uid, TMCG_OpenPGP_UserAttribute* &uat)
@@ -14877,8 +16357,9 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 	// computed over the same data as the certificate that it revokes,
 	// and should have a later creation date than that certificate.
 	TMCG_OpenPGP_Signature *sig = NULL;
-	tmcg_openpgp_octets_t issuer, issuerfpr, hspd, keyflags;
-	tmcg_openpgp_octets_t features, psa, pha, pca, paa, embeddedsig;
+	tmcg_openpgp_octets_t issuer, issuerfpr, hspd, flags, features;
+	tmcg_openpgp_octets_t psa, pha, pca, paa, left;
+	tmcg_openpgp_multiple_octets_t attestedcerts;
 	for (size_t i = 0; i < sizeof(ctx.issuer); i++)
 		issuer.push_back(ctx.issuer[i]);
 	switch (ctx.issuerkeyversion)
@@ -14902,7 +16383,7 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 	for (size_t i = 0; i < ctx.hspdlen; i++)
 		hspd.push_back(ctx.hspd[i]);
 	for (size_t i = 0; i < ctx.keyflagslen; i++)
-		keyflags.push_back(ctx.keyflags[i]);
+		flags.push_back(ctx.keyflags[i]);
 	for (size_t i = 0; i < ctx.featureslen; i++)
 		features.push_back(ctx.features[i]);
 	for (size_t i = 0; i < ctx.psalen; i++)
@@ -14913,8 +16394,57 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 		pca.push_back(ctx.pca[i]);
 	for (size_t i = 0; i < ctx.paalen; i++)
 		paa.push_back(ctx.paa[i]);
-	for (size_t i = 0; i < ctx.embeddedsignaturelen; i++)
-		embeddedsig.push_back(ctx.embeddedsignature[i]);
+	left.push_back(ctx.left[0]), left.push_back(ctx.left[1]);
+	if (ctx.attestedcertificationslen > 0)
+	{
+		if (ctx.type != TMCG_OPENPGP_SIGNATURE_ATTESTATION)
+		{
+			if (verbose)
+			{
+				std::cerr << "ERROR: attested certifications found" <<
+					" on wrong signature type 0x" << std::hex <<
+					(int)ctx.type << std::dec << std::endl;
+			}
+			return false;
+		}
+		size_t hashlen = AlgorithmHashLength(ctx.hashalgo);
+		if (hashlen == 0)
+		{
+			if (verbose)
+			{
+				std::cerr << "ERROR: unknown hash algorithm " <<
+					(int)ctx.hashalgo << " found" << std::endl;
+			}
+			return false;
+		}
+		size_t num = ctx.attestedcertificationslen / hashlen;
+		if ((ctx.attestedcertificationslen % hashlen) != 0)
+		{
+			if (verbose)
+			{
+				std::cerr << "ERROR: wrong size of attested certifications" <<
+					" subpacket" << std::endl;
+			}
+			return false;
+		}
+		for (size_t i = 0; i < num; i++)
+		{
+			size_t ptr = i * hashlen;
+			tmcg_openpgp_octets_t certfpr;
+			for (size_t j = 0; j < hashlen; j++)
+				certfpr.push_back(ctx.attestedcertifications[ptr+j]);
+			attestedcerts.push_back(certfpr);
+		}
+	}
+	if (verbose > 2)
+	{
+		std::cerr << "INFO: embeddedsigs.size() = " << embeddedsigs.size() <<
+			std::endl;
+		std::cerr << "INFO: recipientfprs.size() = " << recipientfprs.size() <<
+			std::endl;
+		std::cerr << "INFO: attestedcerts.size() = " << attestedcerts.size() <<
+			std::endl;
+	}
 	if ((ctx.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
 	    (ctx.pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
 	{
@@ -14927,8 +16457,9 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 			ctx.exportablecertification, ctx.pkalgo, ctx.hashalgo, ctx.type,
 			ctx.version, ctx.sigcreationtime, ctx.sigexpirationtime,
 			ctx.keyexpirationtime, ctx.revocationcode, ctx.md,
-			current_packet, hspd, issuer, issuerfpr, keyflags, features,
-			psa, pha, pca, paa, embeddedsig);
+			current_packet, hspd, issuer, issuerfpr, flags, features,
+			psa, pha, pca, paa, embeddedsigs, recipientfprs, attestedcerts,
+			left);
 	}
 	else if (ctx.pkalgo == TMCG_OPENPGP_PKALGO_DSA)
 	{
@@ -14936,15 +16467,18 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 		rbits = gcry_mpi_get_nbits(ctx.r);
 		sbits = gcry_mpi_get_nbits(ctx.s);
 		if (verbose > 2)
+		{
 			std::cerr << "INFO: rbits = " << rbits <<
 				" sbits = " << sbits <<	std::endl;
+		}
 		// create a new signature object
 		sig = new TMCG_OpenPGP_Signature(ctx.revocable,
 			ctx.exportablecertification, ctx.pkalgo, ctx.hashalgo, ctx.type,
 			ctx.version, ctx.sigcreationtime, ctx.sigexpirationtime,
 			ctx.keyexpirationtime, ctx.revocationcode, ctx.r, ctx.s,
-			current_packet, hspd, issuer, issuerfpr, keyflags, features,
-			psa, pha, pca, paa, embeddedsig);
+			current_packet, hspd, issuer, issuerfpr, flags, features,
+			psa, pha, pca, paa, embeddedsigs, recipientfprs, attestedcerts,
+			left);
 	}
 	else if (ctx.pkalgo == TMCG_OPENPGP_PKALGO_ECDSA)
 	{
@@ -14952,15 +16486,18 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 		rbits = gcry_mpi_get_nbits(ctx.r);
 		sbits = gcry_mpi_get_nbits(ctx.s);
 		if (verbose > 2)
+		{
 			std::cerr << "INFO: ECDSA rbits = " << rbits <<
 				" sbits = " << sbits <<	std::endl;
+		}
 		// create a new signature object
 		sig = new TMCG_OpenPGP_Signature(ctx.revocable,
 			ctx.exportablecertification, ctx.pkalgo, ctx.hashalgo, ctx.type,
 			ctx.version, ctx.sigcreationtime, ctx.sigexpirationtime,
 			ctx.keyexpirationtime, ctx.revocationcode, ctx.r, ctx.s,
-			current_packet, hspd, issuer, issuerfpr, keyflags, features,
-			psa, pha, pca, paa, embeddedsig);
+			current_packet, hspd, issuer, issuerfpr, flags, features,
+			psa, pha, pca, paa, embeddedsigs, recipientfprs, attestedcerts,
+			left);
 	}
 	else if (ctx.pkalgo == TMCG_OPENPGP_PKALGO_EDDSA)
 	{
@@ -14968,34 +16505,40 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 		rbits = gcry_mpi_get_nbits(ctx.r);
 		sbits = gcry_mpi_get_nbits(ctx.s);
 		if (verbose > 2)
+		{
 			std::cerr << "INFO: EdDSA rbits = " << rbits <<
 				" sbits = " << sbits <<	std::endl;
+		}
 		// create a new signature object
 		sig = new TMCG_OpenPGP_Signature(ctx.revocable,
 			ctx.exportablecertification, ctx.pkalgo, ctx.hashalgo, ctx.type,
 			ctx.version, ctx.sigcreationtime, ctx.sigexpirationtime,
 			ctx.keyexpirationtime, ctx.revocationcode, ctx.r, ctx.s,
-			current_packet, hspd, issuer, issuerfpr, keyflags, features,
-			psa, pha, pca, paa, embeddedsig);
+			current_packet, hspd, issuer, issuerfpr, flags, features,
+			psa, pha, pca, paa, embeddedsigs, recipientfprs, attestedcerts,
+			left);
 	}
 	else
 	{
 		if (verbose)
+		{
 			std::cerr << "WARNING: public-key signature algorithm " <<
 				(int)ctx.pkalgo << " not supported" << std::endl;
+		}
 		return true; // continue loop through packets
 	}
 	if (!sig->Good())
 	{
 		if (verbose)
+		{
 			std::cerr << "ERROR: parsing signature" <<
 				" material failed" << std::endl;
-
+		}
 		delete sig;
 		return false;
 	}
 	// evaluate the context of the signature
-	if (!primary)
+	if (!primary || (pub == NULL))
 	{
 		if (verbose)
 			std::cerr << "ERROR: no usable primary key found" << std::endl;
@@ -15005,12 +16548,14 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 	if (badkey)
 	{
 		if (verbose)
-			std::cerr << "WARNING: signature for unrecognized" <<
-				" subkey ignored" << std::endl;
+		{
+			std::cerr << "WARNING: signature for unrecognized " <<
+				"subkey ignored" << std::endl;
+		}
 		delete sig;
 		return true; // continue loop through packets
 	}
-	if (subkey)
+	if (subkey && (sub != NULL))
 	{
 		if (OctetsCompare(pub->id, issuer))
 		{
@@ -15035,7 +16580,7 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 				// Embedded Signature subpacket in this binding signature that
 				// contains a 0x19 signature made by the signing subkey on the
 				// primary key and subkey.
-				if (ctx.embeddedsignaturelen != 0)
+				if (ctx.embeddedsignaturelen > 0)
 				{
 					PacketTagEncode(2, embedded_pkt);
 					PacketLengthEncode(ctx.embeddedsignaturelen, embedded_pkt);
@@ -15070,24 +16615,30 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 				// Key revocation signature on subkey
 				sub->keyrevsigs.push_back(sig);
 				if (verbose)
-					std::cerr << "WARNING: key revocation signature on" <<
-						" subkey found" << std::endl;
+				{
+					std::cerr << "WARNING: key revocation signature on " <<
+						"subkey found" << std::endl;
+				}
 			}
 			else if (ctx.type == TMCG_OPENPGP_SIGNATURE_CERTIFICATION_REVOCATION)
 			{
 				// Certification revocation signature on subkey
 				sub->certrevsigs.push_back(sig);
 				if (verbose)
-					std::cerr << "WARNING: certification revocation" <<
-						" signature on subkey found" << std::endl;
+				{
+					std::cerr << "WARNING: certification revocation " <<
+						"signature on subkey found" << std::endl;
+				}
 			}
 			else
 			{
 				delete sig;
 				if (verbose)
+				{
 					std::cerr << "WARNING: signature of type 0x" << std::hex <<
 						(int)ctx.type << std::dec << " on subkey ignored" <<
 						std::endl;
+				}
 			}
 		}
 		else if (OctetsCompare(sub->id, issuer))
@@ -15122,16 +16673,20 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 				// Certification revocation signature on subkey
 				sub->certrevsigs.push_back(sig);
 				if (verbose)
-					std::cerr << "WARNING: certification revocation" <<
-						" signature on subkey found" << std::endl;
+				{
+					std::cerr << "WARNING: certification revocation " <<
+						"signature on subkey found" << std::endl;
+				}
 			}
 			else
 			{
 				delete sig;
 				if (verbose)
+				{
 					std::cerr << "WARNING: signature of type 0x" << std::hex <<
 						(int)ctx.type << std::dec << " on subkey ignored" <<
 						std::endl;
+				}
 			}
 		}
 		else if (ctx.type == TMCG_OPENPGP_SIGNATURE_SUBKEY_REVOCATION)
@@ -15140,23 +16695,27 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 			// issued by external revocation keys
 			sub->keyrevsigs.push_back(sig);
 			if (verbose)
-				std::cerr << "WARNING: sub-level key revocation signature" <<
-					" on subkey found " << std::endl;
+			{
+				std::cerr << "WARNING: sub-level key revocation signature " <<
+					"on subkey found " << std::endl;
+			}
 		}
 		else
 		{
 			delete sig;
 			if (verbose)
+			{
 				std::cerr << "WARNING: signature of type 0x" << std::hex <<
 					(int)ctx.type << std::dec << " on subkey from unknown" <<
 					" issuer ignored" << std::endl;
+			}
 		}
 		return true; // continue loop through packets
 	}
 	// non-self issuer found?
 	if (!OctetsCompare(pub->id, issuer))
 	{
-		if (uid_flag)
+		if (uid_flag && (uid != NULL))
 		{
 			if ((ctx.type == TMCG_OPENPGP_SIGNATURE_GENERIC_CERTIFICATION) ||
 				(ctx.type == TMCG_OPENPGP_SIGNATURE_PERSONA_CERTIFICATION) ||
@@ -15175,12 +16734,14 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 			{
 				delete sig;
 				if (verbose)
+				{
 					std::cerr << "WARNING: signature of type 0x" << std::hex <<
 						(int)ctx.type << std::dec << " ignored (non-self)" <<
 						std::endl;
+				}
 			}
 		}
-		else if (uat_flag)
+		else if (uat_flag && (uat != NULL))
 		{
 			if ((ctx.type == TMCG_OPENPGP_SIGNATURE_GENERIC_CERTIFICATION) ||
 				(ctx.type == TMCG_OPENPGP_SIGNATURE_PERSONA_CERTIFICATION) ||
@@ -15199,9 +16760,11 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 			{
 				delete sig;
 				if (verbose)
+				{
 					std::cerr << "WARNING: signature of type 0x" << std::hex <<
 						(int)ctx.type << std::dec << " ignored (non-self)" <<
 						std::endl;
+				}
 			}
 		}
 		else if (ctx.type == TMCG_OPENPGP_SIGNATURE_KEY_REVOCATION)
@@ -15210,16 +16773,20 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 			// issued by external revocation keys
 			pub->keyrevsigs.push_back(sig);
 			if (verbose)
-				std::cerr << "WARNING: external key revocation signature" <<
-					" on primary key found" << std::endl;
+			{
+				std::cerr << "WARNING: external key revocation signature " <<
+					"on primary key found" << std::endl;
+			}
 		}
 		else
 		{
 			delete sig;
 			if (verbose)
+			{
 				std::cerr << "WARNING: non-uid/uat signature of type 0x" <<
 					std::hex << (int)ctx.type << std::dec <<
 					" on primary key ignored" << std::endl;
+			}
 		}
 		return true; // continue loop through packets
 	}
@@ -15236,7 +16803,7 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 			{
 				tmcg_openpgp_revkey_t revkey;
 				revkey.key_class = ctx.revocationkey_class;
-				revkey.key_pkalgo =	ctx.revocationkey_pkalgo;
+				revkey.key_pkalgo = ctx.revocationkey_pkalgo;
 				memcpy(revkey.key_fingerprint, 
 					ctx.revocationkey_fingerprint,
 					sizeof(revkey.key_fingerprint));
@@ -15250,28 +16817,34 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 			// Key revocation signature on primary key
 			pub->keyrevsigs.push_back(sig);
 			if (verbose)
-				std::cerr << "WARNING: key revocation signature on primary" <<
-					" key found" << std::endl;
+			{
+				std::cerr << "WARNING: key revocation signature on primary " <<
+					"key found" << std::endl;
+			}
 		}
 		else if (ctx.type == TMCG_OPENPGP_SIGNATURE_CERTIFICATION_REVOCATION)
 		{
 			// Certification revocation signature on primary key
 			pub->certrevsigs.push_back(sig);
 			if (verbose)
-				std::cerr << "WARNING: certification revocation signature" <<
-					" on primary key" << std::endl;
+			{
+				std::cerr << "WARNING: certification revocation signature " <<
+					"on primary key" << std::endl;
+			}
 		}
 		else
 		{
 			delete sig;
 			if (verbose)
+			{
 				std::cerr << "WARNING: non-self signature of type 0x" <<
 					std::hex << (int)ctx.type << std::dec <<
 					" on primary key ignored" << std::endl;
+			}
 		}
 		return true; // continue loop through packets
 	}
-	else if (!uid_flag && uat_flag)
+	else if (!uid_flag && uat_flag && (uat != NULL))
 	{
 		if ((ctx.type == TMCG_OPENPGP_SIGNATURE_GENERIC_CERTIFICATION) ||
 			(ctx.type == TMCG_OPENPGP_SIGNATURE_PERSONA_CERTIFICATION) ||
@@ -15301,20 +16874,29 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 			// Certification revocation signature on user attribute
 			uat->revsigs.push_back(sig);
 			if (verbose)
-				std::cerr << "WARNING: certification revocation signature" <<
-					" on user attribute" << std::endl;
+			{
+				std::cerr << "WARNING: certification revocation signature " <<
+					"on user attribute" << std::endl;
+			}
+		}
+		else if (ctx.type == TMCG_OPENPGP_SIGNATURE_ATTESTATION)
+		{
+			// Attestation Key Signature on user attribute
+			uat->attestsigs.push_back(sig);
 		}
 		else
 		{
 			delete sig;
 			if (verbose)
+			{
 				std::cerr << "WARNING: signature of type 0x" << std::hex <<
 					(int)ctx.type << std::dec << " ignored (uat_flag)" <<
 					std::endl;
+			}
 		}
 		return true; // continue loop through packets
 	}
-	else if (uid_flag && !uat_flag)
+	else if (uid_flag && !uat_flag && (uid != NULL))
 	{
 		if ((ctx.type == TMCG_OPENPGP_SIGNATURE_GENERIC_CERTIFICATION) ||
 			(ctx.type == TMCG_OPENPGP_SIGNATURE_PERSONA_CERTIFICATION) ||
@@ -15344,16 +16926,25 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag2
 			// Certification revocation signature on user ID
 			uid->revsigs.push_back(sig);
 			if (verbose)
-				std::cerr << "WARNING: certification revocation signature" <<
-					" on user ID" << std::endl;
+			{
+				std::cerr << "WARNING: certification revocation signature " <<
+					"on user ID" << std::endl;
+			}
+		}
+		else if (ctx.type == TMCG_OPENPGP_SIGNATURE_ATTESTATION)
+		{
+			// Attestation Key Signature on user ID
+			uid->attestsigs.push_back(sig);
 		}
 		else
 		{
 			delete sig;
 			if (verbose)
+			{
 				std::cerr << "WARNING: signature of type 0x" << std::hex <<
 					(int)ctx.type << std::dec << " ignored (uid_flag)" <<
 					std::endl;
+			}
 		}
 		return true; // continue loop through packets
 	}
@@ -15370,8 +16961,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag6
 	if ((ctx.version != 4) && (ctx.version != 5))
 	{
 		if (verbose)
+		{
 			std::cerr << "WARNING: public-key packet version " <<
 				(int)ctx.version << " not supported" << std::endl;
+		}
 	}
 	else if (!primary)
 	{
@@ -15406,15 +16999,19 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag6
 		{
 			primary = false;
 			if (verbose)
+			{
 				std::cerr << "ERROR: public-key algorithm " <<
 					(int)ctx.pkalgo << " not supported" << std::endl;
+			}
 			return false;
 		}
 		if (!pub->Good())
 		{
 			if (verbose)
-				std::cerr << "ERROR: reading primary key" <<
-					" material failed" << std::endl;
+			{
+				std::cerr << "ERROR: reading primary key " <<
+					"material failed" << std::endl;
+			}
 			return false;
 		}
 		if (verbose > 1)
@@ -15428,8 +17025,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag6
 	else
 	{
 		if (verbose)
+		{
 			std::cerr << "ERROR: more than one primary key not allowed" <<
 				std::endl;
+		}
 		return false;
 	}
 	return true;
@@ -15483,8 +17082,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag14
 	if ((ctx.version != 4) && (ctx.version != 5))
 	{
 		if (verbose)
+		{
 			std::cerr << "WARNING: public-subkey packet version " <<
 				(int)ctx.version << " not supported" << std::endl;
+		}
 		badkey = true;
 	}
 	else if ((ctx.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
@@ -15544,8 +17145,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag14
 		if (!sub->Good())
 		{
 			if (verbose)
-				std::cerr << "ERROR: parsing subkey" <<
-					" material failed" << std::endl;
+			{
+				std::cerr << "ERROR: parsing subkey material failed" <<
+					std::endl;
+			}
 			delete sub;
 			sub = NULL;
 			return false;
@@ -15558,14 +17161,18 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse_Tag14
 			std::cerr << std::dec << std::endl;
 		}
 		if (verbose && OctetsCompare(sub->id, pub->id))
-			std::cerr << "WARNING: probably same key material" <<
-				" used for primary key and subkey" << std::endl;
+		{
+			std::cerr << "WARNING: probably same key material " <<
+				"used for primary key and subkey" << std::endl;
+		}
 	}
 	else
 	{
 		if (verbose)
+		{
 			std::cerr << "WARNING: public-key algorithm " <<
 				(int)ctx.pkalgo << " for subkey not supported" << std::endl;
+		}
 		badkey = true;
 	}
 	return true;
@@ -15616,7 +17223,7 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse_Decrypt
 		size_t keylen = AlgorithmKeyLength(ctx.skalgo);
 		size_t ivlen = AlgorithmIVLength(ctx.skalgo);
 		int	algo = AlgorithmSymGCRY(ctx.skalgo);
-		if (!keylen || !ivlen)
+		if ((keylen == 0) || (ivlen == 0))
 		{
 			if (verbose)
 				std::cerr << "ERROR: algorithm not supported" << std::endl;
@@ -15889,8 +17496,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse_Tag5
 	if ((ctx.version != 4) && (ctx.version != 5))
 	{
 		if (verbose)
+		{
 			std::cerr << "WARNING: secret-key packet version " <<
 				(int)ctx.version << " not supported" << std::endl;
+		}
 	}
 	else if (!primary)
 	{
@@ -15931,16 +17540,19 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse_Tag5
 			tmcg_openpgp_octets_t pcur, pkts;
 			tmcg_openpgp_packet_ctx_t pctx;
 			tmcg_openpgp_notations_t notations;
+			tmcg_openpgp_multiple_octets_t empty;
 			tmcg_openpgp_byte_t ptag = 0xFF;
 			pkts.insert(pkts.end(),
 				current_packet.begin(), current_packet.end());
-			ptag = PacketDecode(pkts, verbose, pctx, pcur,
-				qual, x_rvss_qual, capl, v_i, c_ik, notations);
+			ptag = PacketDecode(pkts, verbose, pctx, pcur, qual, x_rvss_qual,
+				capl, v_i, c_ik, notations, empty, empty);
 			if (ptag != 5)
 			{
 				if (verbose)
+				{
 					std::cerr << "ERROR: decoding tDSS/DSA key failed" <<
 						std::endl;
+				}
 				PacketContextRelease(pctx);
 				Release(qual, v_i, x_rvss_qual, c_ik);
 				return false;
@@ -15957,15 +17569,19 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse_Tag5
 		{
 			primary = false;
 			if (verbose)
+			{
 				std::cerr << "ERROR: public-key algorithm " <<
 					(int)ctx.pkalgo << " not supported" << std::endl;
+			}
 			return false;
 		}
 		if (!prv->Good())
 		{
 			if (verbose)
+			{
 				std::cerr << "ERROR: reading primary key " <<
 					"material failed" << std::endl;
+			}
 			return false;
 		}
 		if (verbose > 1)
@@ -15979,8 +17595,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse_Tag5
 	else
 	{
 		if (verbose)
+		{
 			std::cerr << "ERROR: more than one primary key not allowed" <<
 				std::endl;
+		}
 		return false;
 	}
 	return true;
@@ -16004,9 +17622,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse_Tag7
 	if ((ctx.version != 4) && (ctx.version != 5))
 	{
 		if (verbose)
-			std::cerr << "WARNING: secret-subkey packet " <<
-				"version " << (int)ctx.version <<
-				" not supported" << std::endl;
+		{
+			std::cerr << "WARNING: secret-subkey packet version " <<
+				(int)ctx.version << " not supported" << std::endl;
+		}
 		badkey = true;
 	}
 	else if ((ctx.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
@@ -16051,11 +17670,12 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse_Tag7
 			tmcg_openpgp_octets_t pcur, pkts;
 			tmcg_openpgp_packet_ctx_t pctx;
 			tmcg_openpgp_notations_t notations;
+			tmcg_openpgp_multiple_octets_t empty;
 			tmcg_openpgp_byte_t ptag = 0xFF;
 			pkts.insert(pkts.end(),
 				current_packet.begin(), current_packet.end());
-			ptag = PacketDecode(pkts, verbose, pctx, pcur,
-				qual, x_rvss_qual, capl, v_i, c_ik, notations);
+			ptag = PacketDecode(pkts, verbose, pctx, pcur, qual, x_rvss_qual,
+				capl, v_i, c_ik, notations, empty, empty);
 			if (ptag != 7)
 			{
 				if (verbose)
@@ -16097,8 +17717,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse_Tag7
 		if (!sub->Good())
 		{
 			if (verbose)
+			{
 				std::cerr << "ERROR: parsing subkey " <<
 					"material failed" << std::endl;
+			}
 			delete sub;
 			sub = NULL;
 			return false;
@@ -16117,9 +17739,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse_Tag7
 	else
 	{
 		if (verbose)
+		{
 			std::cerr << "WARNING: public-key algorithm " <<
-				(int)ctx.pkalgo << " for subkey not " <<
-				"supported" << std::endl;
+				(int)ctx.pkalgo << " for subkey not supported" << std::endl;
+		}
 		badkey = true;
 	}
 	return true;
@@ -16176,6 +17799,8 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse_Tag1
 bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse_Tag2
 	(const tmcg_openpgp_packet_ctx_t &ctx, const int verbose,
 	 const tmcg_openpgp_octets_t &current_packet,
+	 const tmcg_openpgp_multiple_octets_t &embeddedsigs,
+	 const tmcg_openpgp_multiple_octets_t &recipientfprs,
 	 TMCG_OpenPGP_Message* &msg)
 {
 	if (verbose > 2)
@@ -16183,17 +17808,18 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse_Tag2
 		std::cerr << "INFO: packet length = " << current_packet.size() <<
 			std::endl;
 	}
-	tmcg_openpgp_octets_t issuer, issuerfpr, hspd, keyflags;
-	tmcg_openpgp_octets_t features, psa, pha, pca, paa, embeddedsig;
+	tmcg_openpgp_octets_t issuer, issuerfpr, hspd, flags, features;
+	tmcg_openpgp_octets_t psa, pha, pca, paa, left;
+	tmcg_openpgp_multiple_octets_t empty;
 	for (size_t i = 0; i < sizeof(ctx.issuer); i++)
 		issuer.push_back(ctx.issuer[i]);
 	switch (ctx.issuerkeyversion)
 	{
-		case 0x04: // V4 keys use SHA-1
+		case 4: // V4 keys use SHA-1
 			for (size_t i = 0; i < 20; i++)
 				issuerfpr.push_back(ctx.issuerfingerprint[i]);
 			break;
-		case 0x05: // V5 keys use SHA256
+		case 5: // V5 keys use SHA256
 			for (size_t i = 0; i < 32; i++)
 				issuerfpr.push_back(ctx.issuerfingerprint[i]);
 			if (OctetsCompareZero(issuer))
@@ -16208,7 +17834,7 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse_Tag2
 	for (size_t i = 0; i < ctx.hspdlen; i++)
 		hspd.push_back(ctx.hspd[i]);
 	for (size_t i = 0; i < ctx.keyflagslen; i++)
-		keyflags.push_back(ctx.keyflags[i]);
+		flags.push_back(ctx.keyflags[i]);
 	for (size_t i = 0; i < ctx.featureslen; i++)
 		features.push_back(ctx.features[i]);
 	for (size_t i = 0; i < ctx.psalen; i++)
@@ -16219,8 +17845,7 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse_Tag2
 		pca.push_back(ctx.pca[i]);
 	for (size_t i = 0; i < ctx.paalen; i++)
 		paa.push_back(ctx.paa[i]);
-	for (size_t i = 0; i < ctx.embeddedsignaturelen; i++)
-		embeddedsig.push_back(ctx.embeddedsignature[i]);
+	left.push_back(ctx.left[0]), left.push_back(ctx.left[1]);
 	TMCG_OpenPGP_Signature *sig = NULL;
 	if ((ctx.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
 	    (ctx.pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
@@ -16234,8 +17859,8 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse_Tag2
 			ctx.exportablecertification, ctx.pkalgo, ctx.hashalgo,
 			ctx.type, ctx.version, ctx.sigcreationtime,
 			ctx.sigexpirationtime, 0, ctx.revocationcode, ctx.md,
-			current_packet, hspd, issuer, issuerfpr, keyflags, features,
-			psa, pha, pca, paa, embeddedsig);
+			current_packet, hspd, issuer, issuerfpr, flags, features,
+			psa, pha, pca, paa, embeddedsigs, recipientfprs, empty, left);
 	}
 	else if ((ctx.pkalgo == TMCG_OPENPGP_PKALGO_DSA) ||
 		(ctx.pkalgo == TMCG_OPENPGP_PKALGO_ECDSA) ||
@@ -16252,8 +17877,8 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse_Tag2
 			ctx.exportablecertification, ctx.pkalgo, ctx.hashalgo,
 			ctx.type, ctx.version, ctx.sigcreationtime,
 			ctx.sigexpirationtime, 0, ctx.revocationcode, ctx.r, ctx.s,
-			current_packet, hspd, issuer, issuerfpr, keyflags, features,
-			psa, pha, pca, paa, embeddedsig);
+			current_packet, hspd, issuer, issuerfpr, flags, features,
+			psa, pha, pca, paa, embeddedsigs, recipientfprs, empty, left);
 	}
 	else
 	{
@@ -16267,7 +17892,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse_Tag2
 	if (!sig->Good())
 	{
 		if (verbose)
-			std::cerr << "ERROR: parsing signature material failed" << std::endl;
+		{
+			std::cerr << "ERROR: parsing signature material failed" <<
+				std::endl;
+		}
 		delete sig;
 		return false;
 	}
@@ -16511,8 +18139,10 @@ void CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyringParse_Add
 		if (!ring->Add(pub))
 		{
 			if (verbose)
+			{
 				std::cerr << "WARNING: keyring already contains" <<
 					" this key; duplicate key ignored" << std::endl;
+			}
 			delete pub;
 		}
 		pub = NULL, sub = NULL, uid = NULL, uat = NULL;
@@ -16545,51 +18175,66 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse
 		tmcg_openpgp_packet_ctx_t ctx;
 		tmcg_openpgp_octets_t current_packet;
 		tmcg_openpgp_notations_t notations;
+		tmcg_openpgp_multiple_octets_t embeddedsigs, recipientfprs;
+		tmcg_openpgp_multiple_octets_t attestedcerts;
 		if (embedded_pkt.size())
 		{
 			ptag = PacketDecode(embedded_pkt, verbose, ctx, current_packet,
-				notations);
+				notations, embeddedsigs, recipientfprs);
 			if (verbose > 2)
+			{
 				std::cerr << "INFO: [EMBEDDED] PacketDecode() = " <<
 					(int)ptag << " version = " << (int)ctx.version << std::endl;
+			}
 			embedded_pkt.clear();
 		}
 		else
 		{
-			ptag = PacketDecode(pkts, verbose, ctx, current_packet, notations);
+			ptag = PacketDecode(pkts, verbose, ctx, current_packet, notations,
+				embeddedsigs, recipientfprs);
 			++pnum;
 			if (verbose > 2)
+			{
 				std::cerr << "INFO: PacketDecode() = " <<
 					(int)ptag << " version = " << (int)ctx.version << std::endl;
+			}
 		}
 		if (ptag == 0x00)
 		{
 			if (verbose)
-				std::cerr << "WARNING: decoding OpenPGP packets failed " <<
+			{
+				std::cerr << "WARNING: decoding packets failed " <<
 					"at packet #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore packet
 		}
 		else if (ptag == 0xFA)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized critical OpenPGP" <<
-					" subpacket found at packet #" << pnum << std::endl;
+			{
+				std::cerr << "WARNING: unrecognized critical " <<
+					"subpacket found at packet #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore signature with critical subpacket
 		}
 		else if (ptag == 0xFB)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized OpenPGP" <<
-					" subpacket found at packet #" << pnum << std::endl;
+			{
+				std::cerr << "WARNING: unrecognized " <<
+					"subpacket found at packet #" << pnum << std::endl;
+			}
 			ptag = 0x02; // try to process signature anyway
 		}
 		else if (ptag == 0xFC)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized OpenPGP" <<
-					" signature packet found at #" << pnum << std::endl;
+			{
+				std::cerr << "WARNING: unrecognized " <<
+					"signature packet found at #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore packet
 		}
@@ -16598,8 +18243,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse
 			if (primary)
 			{
 				if (verbose)
-					std::cerr << "WARNING: unrecognized OpenPGP " <<
+				{
+					std::cerr << "WARNING: unrecognized " <<
 						"key packet found at #" << pnum << std::endl;
+				}
 				if (!badkey && subkey)
 				{
 					pub->subkeys.push_back(sub);
@@ -16612,8 +18259,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse
 			else
 			{
 				if (verbose)
+				{
 					std::cerr << "ERROR: public-key algorithm " <<
 						(int)ctx.pkalgo << " not supported" << std::endl;
+				}
 				PacketContextRelease(ctx);
 				return false;
 			}
@@ -16621,8 +18270,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse
 		else if (ptag == 0xFE)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized OpenPGP " <<
+			{
+				std::cerr << "WARNING: unrecognized " <<
 					"packet found at #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore packet
 		}
@@ -16631,7 +18282,8 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse
 			case 2: // Signature Packet
 				ret = PublicKeyBlockParse_Tag2(ctx, verbose, primary,
 					subkey, badkey, uid_flag, uat_flag,
-					current_packet, embedded_pkt, pub, sub, uid, uat);
+					current_packet, embeddedsigs, recipientfprs,
+					embedded_pkt, pub, sub, uid, uat);
 				break;
 			case 6: // Public-Key Packet
 				ret = PublicKeyBlockParse_Tag6(ctx, verbose,
@@ -16651,8 +18303,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse
 				break;
 			default:
 				if (verbose > 1)
-					std::cerr << "INFO: OpenPGP packet with tag " <<
+				{
+					std::cerr << "INFO: packet with tag " <<
 						(int)ptag << " ignored" << std::endl;
+				}
 				break;
 		}
 		// cleanup allocated buffers and mpi's
@@ -16703,8 +18357,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyBlockParse
 	if (type != TMCG_OPENPGP_ARMOR_PUBLIC_KEY_BLOCK)
 	{
 		if (verbose)
+		{
 			std::cerr << "ERROR: wrong type of ASCII Armor found" <<
 				" (type = " << (int)type << ")" << std::endl;
+		}
 		return false;
 	}
 	return PublicKeyBlockParse(pkts, verbose, pub);
@@ -16718,164 +18374,197 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::SignatureParse
 	// copy the message for processing
 	tmcg_openpgp_octets_t pkts;
 	pkts.insert(pkts.end(), in.begin(), in.end());
-	// parse a single signature packet
-	tmcg_openpgp_packet_ctx_t ctx;
-	tmcg_openpgp_octets_t current_packet;
-	tmcg_openpgp_notations_t notations;
-	tmcg_openpgp_byte_t ptag = PacketDecode(pkts, verbose, ctx, current_packet,
-		notations);
-	if (verbose > 2)
-		std::cerr << "INFO: PacketDecode() = " << (int)ptag << 
-			" version = " << (int)ctx.version << std::endl;
-	if (ptag == 0x00)
+	size_t pnum = 0;
+	while (pkts.size())
 	{
-		if (verbose)
-			std::cerr << "ERROR: decoding OpenPGP packet failed" << std::endl;
-		PacketContextRelease(ctx);
-		return false;
-	}
-	else if (ptag == 0xFA)
-	{
-		if (verbose)
-			std::cerr << "ERROR: unrecognized critical OpenPGP" <<
-				" signature subpacket found" << std::endl;
-		PacketContextRelease(ctx);
-		return false;
-	}
-	else if (ptag == 0xFB)
-	{
-		if (verbose)
-			std::cerr << "WARNING: unrecognized OpenPGP" <<
-				" signature subpacket found" << std::endl;
-		ptag = 0x02; // process signature anyway
-	}
-	else if (ptag == 0xFC)
-	{
-		if (verbose)
-			std::cerr << "ERROR: unrecognized OpenPGP" <<
-				" signature packet found " << std::endl;
-		PacketContextRelease(ctx);
-		return false;
-	}
-	else if (ptag == 0xFD)
-	{
-		if (verbose)
-			std::cerr << "ERROR: unrecognized OpenPGP" <<
-				" key packet found" << std::endl;
-		PacketContextRelease(ctx);
-		return false;
-	}
-	else if (ptag == 0xFE)
-	{
-		if (verbose)
-			std::cerr << "ERROR: unrecognized OpenPGP" << 
-				" packet found" << std::endl;
-		PacketContextRelease(ctx);
-		return false;
-	}
-	tmcg_openpgp_octets_t issuer, issuerfpr, hspd, keyflags;
-	tmcg_openpgp_octets_t features, psa, pha, pca, paa, embeddedsig;
-	for (size_t i = 0; i < sizeof(ctx.issuer); i++)
-		issuer.push_back(ctx.issuer[i]);
-	switch (ctx.issuerkeyversion)
-	{
-		case 0x04: // V4 keys use SHA-1
-			for (size_t i = 0; i < 20; i++)
-				issuerfpr.push_back(ctx.issuerfingerprint[i]);
-			break;
-		case 0x05: // V5 keys use SHA256
-			for (size_t i = 0; i < 32; i++)
-				issuerfpr.push_back(ctx.issuerfingerprint[i]);
-			if (OctetsCompareZero(issuer))
-			{
-				// those keys may not have issuer subpackets, so we must infer
-				issuer.clear();
-				for (size_t i = 0; i < 8; i++)
-					issuer.push_back(ctx.issuerfingerprint[i]);
-			}
-			break;
-	}
-	for (size_t i = 0; i < ctx.hspdlen; i++)
-		hspd.push_back(ctx.hspd[i]);
-	for (size_t i = 0; i < ctx.keyflagslen; i++)
-		keyflags.push_back(ctx.keyflags[i]);
-	for (size_t i = 0; i < ctx.featureslen; i++)
-		features.push_back(ctx.features[i]);
-	for (size_t i = 0; i < ctx.psalen; i++)
-		psa.push_back(ctx.psa[i]);
-	for (size_t i = 0; i < ctx.phalen; i++)
-		pha.push_back(ctx.pha[i]);
-	for (size_t i = 0; i < ctx.pcalen; i++)
-		pca.push_back(ctx.pca[i]);
-	for (size_t i = 0; i < ctx.paalen; i++)
-		paa.push_back(ctx.paa[i]);
-	for (size_t i = 0; i < ctx.embeddedsignaturelen; i++)
-		embeddedsig.push_back(ctx.embeddedsignature[i]);
-	switch (ptag)
-	{
-		case 2: // Signature Packet
-			if ((ctx.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
-			    (ctx.pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
-			{
-				unsigned int mdbits = 0;
-				mdbits = gcry_mpi_get_nbits(ctx.md);
-				if (verbose > 2)
-					std::cerr << "INFO: mdbits = " << mdbits << std::endl;
-				// create a new signature object
-				sig = new TMCG_OpenPGP_Signature(ctx.revocable,
-					ctx.exportablecertification, ctx.pkalgo, ctx.hashalgo,
-					ctx.type, ctx.version, ctx.sigcreationtime,
-					ctx.sigexpirationtime, 0, ctx.revocationcode, ctx.md,
-					current_packet, hspd, issuer, issuerfpr, keyflags, features,
-					psa, pha, pca, paa, embeddedsig);
-			}
-			else if ((ctx.pkalgo == TMCG_OPENPGP_PKALGO_DSA) ||
-				(ctx.pkalgo == TMCG_OPENPGP_PKALGO_ECDSA) ||
-				(ctx.pkalgo == TMCG_OPENPGP_PKALGO_EDDSA))
-			{
-				unsigned int rbits = 0, sbits = 0;
-				rbits = gcry_mpi_get_nbits(ctx.r);
-				sbits = gcry_mpi_get_nbits(ctx.s);
-				if (verbose > 2)
-					std::cerr << "INFO: rbits = " << rbits <<
-						" sbits = " << sbits << std::endl;
-				// create a new signature object
-				sig = new TMCG_OpenPGP_Signature(ctx.revocable,
-					ctx.exportablecertification, ctx.pkalgo, ctx.hashalgo,
-					ctx.type, ctx.version, ctx.sigcreationtime,
-					ctx.sigexpirationtime, 0, ctx.revocationcode, ctx.r, ctx.s,
-					current_packet, hspd, issuer, issuerfpr, keyflags, features,
-					psa, pha, pca, paa, embeddedsig);
-			}
-			else
-			{
-				if (verbose)
-					std::cerr << "ERROR: public-key signature algorithm " <<
-						(int)ctx.pkalgo << " not supported" << std::endl;
-				PacketContextRelease(ctx);
-				return false;
-			}
-			if (!sig->Good())
-			{
-				if (verbose)
-					std::cerr << "ERROR: parsing signature material failed" <<
-						std::endl;
-				PacketContextRelease(ctx);
-				delete sig;
-				return false;
-			}
-			break;
-		default:
+		// parse a single signature packet
+		tmcg_openpgp_packet_ctx_t ctx;
+		tmcg_openpgp_octets_t current_packet;
+		tmcg_openpgp_notations_t notations;
+		tmcg_openpgp_multiple_octets_t embeddedsigs, recipientfprs;
+		tmcg_openpgp_multiple_octets_t attestedcerts;
+		tmcg_openpgp_byte_t ptag = PacketDecode(pkts, verbose, ctx,
+			current_packet, notations, embeddedsigs, recipientfprs);
+		++pnum;
+		if (verbose > 2)
+		{
+			std::cerr << "INFO: PacketDecode() = " << (int)ptag << 
+				" version = " << (int)ctx.version << std::endl;
+		}
+		if (ptag == 0x00)
+		{
 			if (verbose)
-				std::cerr << "ERROR: wrong OpenPGP packet with tag " << 
-					(int)ptag << std::endl;
+			{
+				std::cerr << "WARNING: decoding packet #" << pnum <<
+					" failed; packet ignored" << std::endl;
+			}
 			PacketContextRelease(ctx);
-			return false;
-			break;
+			continue; // ignore packet
+		}
+		else if (ptag == 0xFA)
+		{
+			if (verbose)
+			{
+				std::cerr << "WARNING: unrecognized critical " <<
+					"signature subpacket found; packet ignored" << std::endl;
+			}
+			PacketContextRelease(ctx);
+			continue; // ignore packet
+		}
+		else if (ptag == 0xFB)
+		{
+			if (verbose)
+			{
+				std::cerr << "WARNING: unrecognized " <<
+					"signature subpacket found; subpacket ignored" << std::endl;
+			}
+			ptag = 0x02; // process signature anyway
+		}
+		else if (ptag == 0xFC)
+		{
+			if (verbose)
+			{
+				std::cerr << "WARNING: unrecognized signature " <<
+					"packet found; packet ignored" << std::endl;
+			}
+			PacketContextRelease(ctx);
+			continue; // ignore packet
+		}
+		else if (ptag == 0xFD)
+		{
+			if (verbose)
+			{
+				std::cerr << "WARNING: unrecognized key " <<
+					"packet found; packet ignored" << std::endl;
+			}
+			PacketContextRelease(ctx);
+			continue; // ignore packet
+		}
+		else if (ptag == 0xFE)
+		{
+			if (verbose)
+			{
+				std::cerr << "WARNING: unrecognized packet found; " <<
+					"packet ignored" << std::endl;
+			}
+			PacketContextRelease(ctx);
+			continue; // ignore packet
+		}
+		tmcg_openpgp_octets_t issuer, issuerfpr, hspd, flags, features;
+		tmcg_openpgp_octets_t psa, pha, pca, paa, left;
+		for (size_t i = 0; i < sizeof(ctx.issuer); i++)
+			issuer.push_back(ctx.issuer[i]);
+		switch (ctx.issuerkeyversion)
+		{
+			case 4: // V4 keys use SHA-1
+				for (size_t i = 0; i < 20; i++)
+					issuerfpr.push_back(ctx.issuerfingerprint[i]);
+				break;
+			case 5: // V5 keys use SHA256
+				for (size_t i = 0; i < 32; i++)
+					issuerfpr.push_back(ctx.issuerfingerprint[i]);
+				if (OctetsCompareZero(issuer))
+				{
+					// those keys may not have issuer subpackets, so infer
+					issuer.clear();
+					for (size_t i = 0; i < 8; i++)
+						issuer.push_back(ctx.issuerfingerprint[i]);
+				}
+				break;
+		}
+		for (size_t i = 0; i < ctx.hspdlen; i++)
+			hspd.push_back(ctx.hspd[i]);
+		for (size_t i = 0; i < ctx.keyflagslen; i++)
+			flags.push_back(ctx.keyflags[i]);
+		for (size_t i = 0; i < ctx.featureslen; i++)
+			features.push_back(ctx.features[i]);
+		for (size_t i = 0; i < ctx.psalen; i++)
+			psa.push_back(ctx.psa[i]);
+		for (size_t i = 0; i < ctx.phalen; i++)
+			pha.push_back(ctx.pha[i]);
+		for (size_t i = 0; i < ctx.pcalen; i++)
+			pca.push_back(ctx.pca[i]);
+		for (size_t i = 0; i < ctx.paalen; i++)
+			paa.push_back(ctx.paa[i]);
+		left.push_back(ctx.left[0]), left.push_back(ctx.left[1]);
+		switch (ptag)
+		{
+			case 2: // Signature Packet
+				if ((ctx.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
+				    (ctx.pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
+				{
+					unsigned int mdbits = 0;
+					mdbits = gcry_mpi_get_nbits(ctx.md);
+					if (verbose > 2)
+						std::cerr << "INFO: mdbits = " << mdbits << std::endl;
+					// create a new signature object
+					sig = new TMCG_OpenPGP_Signature(ctx.revocable,
+						ctx.exportablecertification, ctx.pkalgo, ctx.hashalgo,
+						ctx.type, ctx.version, ctx.sigcreationtime,
+						ctx.sigexpirationtime, 0, ctx.revocationcode, ctx.md,
+						current_packet, hspd, issuer, issuerfpr, flags, features,
+						psa, pha, pca, paa, embeddedsigs, recipientfprs,
+						attestedcerts, left);
+				}
+				else if ((ctx.pkalgo == TMCG_OPENPGP_PKALGO_DSA) ||
+					(ctx.pkalgo == TMCG_OPENPGP_PKALGO_ECDSA) ||
+					(ctx.pkalgo == TMCG_OPENPGP_PKALGO_EDDSA))
+				{
+					unsigned int rbits = 0, sbits = 0;
+					rbits = gcry_mpi_get_nbits(ctx.r);
+					sbits = gcry_mpi_get_nbits(ctx.s);
+					if (verbose > 2)
+					{
+						std::cerr << "INFO: rbits = " << rbits <<
+							" sbits = " << sbits << std::endl;
+					}
+					// create a new signature object
+					sig = new TMCG_OpenPGP_Signature(ctx.revocable,
+						ctx.exportablecertification, ctx.pkalgo, ctx.hashalgo,
+						ctx.type, ctx.version, ctx.sigcreationtime,
+						ctx.sigexpirationtime, 0, ctx.revocationcode, ctx.r, ctx.s,
+						current_packet, hspd, issuer, issuerfpr, flags, features,
+						psa, pha, pca, paa, embeddedsigs, recipientfprs,
+						attestedcerts, left);
+				}
+				else
+				{
+					if (verbose)
+					{
+						std::cerr << "ERROR: public-key signature algorithm " <<
+							(int)ctx.pkalgo << " not supported" << std::endl;
+					}
+					PacketContextRelease(ctx);
+					return false;
+				}
+				if (!sig->Good())
+				{
+					if (verbose)
+					{
+						std::cerr << "ERROR: parsing signature material" <<
+							" failed" << std::endl;
+					}
+					PacketContextRelease(ctx);
+					delete sig;
+					return false;
+				}
+				else
+				{
+					return true; // first signature packet wins
+				}
+				break;
+			default:
+				if (verbose)
+				{
+					std::cerr << "WARNING: wrong packet with tag " << 
+						(int)ptag << " ignored" << std::endl;
+				}
+				break;
+		}
+		// cleanup allocated buffers and mpi's
+		PacketContextRelease(ctx);
 	}
-	// cleanup allocated buffers and mpi's
-	PacketContextRelease(ctx);
-	return true;
+	return false;
 }
 
 bool CallasDonnerhackeFinneyShawThayerRFC4880::SignatureParse
@@ -16888,11 +18577,235 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::SignatureParse
 	if (type != TMCG_OPENPGP_ARMOR_SIGNATURE)
 	{
 		if (verbose)
+		{
 			std::cerr << "ERROR: wrong type of ASCII Armor found" <<
 				" (type = " << (int)type << ")" << std::endl;
+		}
 		return false;
 	}
 	return SignatureParse(pkts, verbose, sig);
+}
+
+bool CallasDonnerhackeFinneyShawThayerRFC4880::SignaturesParse
+	(const tmcg_openpgp_octets_t &in, const int verbose,
+	 TMCG_OpenPGP_Signatures &sigs)
+{
+	// copy the message for processing
+	tmcg_openpgp_octets_t pkts;
+	pkts.insert(pkts.end(), in.begin(), in.end());
+	size_t pnum = 0, ok = 0;
+	while (pkts.size())
+	{
+		// parse a single signature packet
+		tmcg_openpgp_packet_ctx_t ctx;
+		tmcg_openpgp_octets_t current_packet;
+		tmcg_openpgp_notations_t notations;
+		tmcg_openpgp_multiple_octets_t embeddedsigs, recipientfprs;
+		tmcg_openpgp_multiple_octets_t attestedcerts;
+		tmcg_openpgp_byte_t ptag = PacketDecode(pkts, verbose, ctx,
+			current_packet, notations, embeddedsigs, recipientfprs);
+		++pnum;
+		if (verbose > 2)
+		{
+			std::cerr << "INFO: PacketDecode() = " << (int)ptag << 
+				" version = " << (int)ctx.version << std::endl;
+		}
+		if (ptag == 0x00)
+		{
+			if (verbose)
+			{
+				std::cerr << "WARNING: decoding packet #" << pnum <<
+					" failed; packet ignored" << std::endl;
+			}
+			PacketContextRelease(ctx);
+			continue; // ignore packet
+		}
+		else if (ptag == 0xFA)
+		{
+			if (verbose)
+			{
+				std::cerr << "WARNING: unrecognized critical " <<
+					"signature subpacket found; packet ignored" << std::endl;
+			}
+			PacketContextRelease(ctx);
+			continue; // ignore packet
+		}
+		else if (ptag == 0xFB)
+		{
+			if (verbose)
+			{
+				std::cerr << "WARNING: unrecognized " <<
+					"signature subpacket found; subpacket ignored" << std::endl;
+			}
+			ptag = 0x02; // process packet anyway
+		}
+		else if (ptag == 0xFC)
+		{
+			if (verbose)
+			{
+				std::cerr << "WARNING: unrecognized signature " <<
+					"packet found; packet ignored" << std::endl;
+			}
+			PacketContextRelease(ctx);
+			continue; // ignore packet
+		}
+		else if (ptag == 0xFD)
+		{
+			if (verbose)
+			{
+				std::cerr << "WARNING: unrecognized key " <<
+					"packet found; packet ignored" << std::endl;
+			}
+			PacketContextRelease(ctx);
+			continue; // ignore packet
+		}
+		else if (ptag == 0xFE)
+		{
+			if (verbose)
+			{
+				std::cerr << "WARNING: unrecognized packet found;" <<
+					" packet ignored" << std::endl;
+			}
+			PacketContextRelease(ctx);
+			continue; // ignore packet
+		}
+		if (ptag == 2)
+		{
+			TMCG_OpenPGP_Signature *sig = NULL;
+			tmcg_openpgp_octets_t issuer, issuerfpr, hspd, flags, features;
+			tmcg_openpgp_octets_t psa, pha, pca, paa, left;
+			for (size_t i = 0; i < sizeof(ctx.issuer); i++)
+				issuer.push_back(ctx.issuer[i]);
+			switch (ctx.issuerkeyversion)
+			{
+				case 4: // V4 keys use SHA-1
+					for (size_t i = 0; i < 20; i++)
+						issuerfpr.push_back(ctx.issuerfingerprint[i]);
+					break;
+				case 5: // V5 keys use SHA256
+					for (size_t i = 0; i < 32; i++)
+						issuerfpr.push_back(ctx.issuerfingerprint[i]);
+					break;
+			}
+			if (OctetsCompareZero(issuer) && (issuerfpr.size() >= 8))
+			{
+				// if there is no issuer subpacket, the infer from fingerprint
+				issuer.clear();
+				for (size_t i = 0; i < 8; i++)
+					issuer.push_back(ctx.issuerfingerprint[i]);
+			}
+			for (size_t i = 0; i < ctx.hspdlen; i++)
+				hspd.push_back(ctx.hspd[i]);
+			for (size_t i = 0; i < ctx.keyflagslen; i++)
+				flags.push_back(ctx.keyflags[i]);
+			for (size_t i = 0; i < ctx.featureslen; i++)
+				features.push_back(ctx.features[i]);
+			for (size_t i = 0; i < ctx.psalen; i++)
+				psa.push_back(ctx.psa[i]);
+			for (size_t i = 0; i < ctx.phalen; i++)
+				pha.push_back(ctx.pha[i]);
+			for (size_t i = 0; i < ctx.pcalen; i++)
+				pca.push_back(ctx.pca[i]);
+			for (size_t i = 0; i < ctx.paalen; i++)
+				paa.push_back(ctx.paa[i]);
+			left.push_back(ctx.left[0]), left.push_back(ctx.left[1]);
+			if ((ctx.pkalgo == TMCG_OPENPGP_PKALGO_RSA) ||
+			    (ctx.pkalgo == TMCG_OPENPGP_PKALGO_RSA_SIGN_ONLY))
+			{
+				unsigned int mdbits = 0;
+				mdbits = gcry_mpi_get_nbits(ctx.md);
+				if (verbose > 2)
+					std::cerr << "INFO: mdbits = " << mdbits << std::endl;
+				// create a new signature object
+				sig = new TMCG_OpenPGP_Signature(ctx.revocable,
+					ctx.exportablecertification, ctx.pkalgo, ctx.hashalgo,
+					ctx.type, ctx.version, ctx.sigcreationtime,
+					ctx.sigexpirationtime, 0, ctx.revocationcode, ctx.md,
+					current_packet, hspd, issuer, issuerfpr, flags, features,
+					psa, pha, pca, paa, embeddedsigs, recipientfprs,
+					attestedcerts, left);
+			}
+			else if ((ctx.pkalgo == TMCG_OPENPGP_PKALGO_DSA) ||
+				(ctx.pkalgo == TMCG_OPENPGP_PKALGO_ECDSA) ||
+				(ctx.pkalgo == TMCG_OPENPGP_PKALGO_EDDSA))
+			{
+				unsigned int rbits = 0, sbits = 0;
+				rbits = gcry_mpi_get_nbits(ctx.r);
+				sbits = gcry_mpi_get_nbits(ctx.s);
+				if (verbose > 2)
+				{
+					std::cerr << "INFO: rbits = " << rbits <<
+						" sbits = " << sbits << std::endl;
+				}
+				// create a new signature object
+				sig = new TMCG_OpenPGP_Signature(ctx.revocable,
+					ctx.exportablecertification, ctx.pkalgo, ctx.hashalgo,
+					ctx.type, ctx.version, ctx.sigcreationtime,
+					ctx.sigexpirationtime, 0, ctx.revocationcode, ctx.r, ctx.s,
+					current_packet, hspd, issuer, issuerfpr, flags, features,
+					psa, pha, pca, paa, embeddedsigs, recipientfprs,
+					attestedcerts, left);
+			}
+			else
+			{
+				if (verbose)
+				{
+					std::cerr << "WARNING: public-key signature" <<
+						" algorithm " << (int)ctx.pkalgo << " not" <<
+						" supported; packet ignored" << std::endl;
+				}
+			}
+			if (sig != NULL)
+			{
+				if (!sig->Good())
+				{
+					if (verbose)
+					{
+						std::cerr << "WARNING: parsing signature material" <<
+							" of packet #" << pnum << " failed" << std::endl;
+					}
+					delete sig;
+				}
+				else
+				{
+					++ok;
+					sigs.push_back(sig);
+				}
+			}
+		}
+		else
+		{
+			if (verbose)
+			{
+				std::cerr << "WARNING: wrong packet with tag " << 
+					(int)ptag << "; packet ignored" << std::endl;
+			}
+		}
+		// cleanup allocated buffers and mpi's
+		PacketContextRelease(ctx);
+	}
+	if (ok)
+		return true;
+	return false;
+}
+
+bool CallasDonnerhackeFinneyShawThayerRFC4880::SignaturesParse
+	(const std::string &in, const int verbose,
+	 TMCG_OpenPGP_Signatures &sigs)
+{
+	// decode ASCII Armor
+	tmcg_openpgp_octets_t pkts;
+	tmcg_openpgp_armor_t type = ArmorDecode(in, pkts);
+	if (type != TMCG_OPENPGP_ARMOR_SIGNATURE)
+	{
+		if (verbose)
+		{
+			std::cerr << "ERROR: wrong type of ASCII Armor found" <<
+				" (type = " << (int)type << ")" << std::endl;
+		}
+		return false;
+	}
+	return SignaturesParse(pkts, verbose, sigs);
 }
 
 bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyringParse
@@ -16921,62 +18834,79 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyringParse
 		tmcg_openpgp_packet_ctx_t ctx;
 		tmcg_openpgp_octets_t current_packet;
 		tmcg_openpgp_notations_t notations;
+		tmcg_openpgp_multiple_octets_t embeddedsigs, recipientfprs;
+		tmcg_openpgp_multiple_octets_t attestedcerts;
 		if (embedded_pkt.size())
 		{
 			ptag = PacketDecode(embedded_pkt, verbose, ctx, current_packet,
-				notations);
+				notations, embeddedsigs, recipientfprs);
 			if (verbose > 2)
+			{
 				std::cerr << "INFO: [EMBEDDED] PacketDecode() = " <<
 					(int)ptag << " version = " << (int)ctx.version << std::endl;
+			}
 			embedded_pkt.clear();
 		}
 		else
 		{
-			ptag = PacketDecode(pkts, verbose, ctx, current_packet, notations);
+			ptag = PacketDecode(pkts, verbose, ctx, current_packet, notations,
+				embeddedsigs, recipientfprs);
 			++pnum;
 			if ((ptag == 5) || (ptag == 6) || (ctx.tag == 5) || (ctx.tag == 6))
 				++knum;
 			if (verbose > 2)
-				std::cerr << "INFO: PacketDecode() = " <<
-					(int)ptag << " version = " << (int)ctx.version << std::endl;
+			{
+				std::cerr << "INFO: PacketDecode() = " << (int)ptag <<
+					" version = " << (int)ctx.version << std::endl;
+			}
 		}
 		// handle return code from PacketDecode()
 		if (ptag == 0x00)
 		{
 			if (verbose)
-				std::cerr << "WARNING: decoding OpenPGP packets failed " <<
-					"at key #" << knum << " and packet #" << pnum << std::endl;
+			{
+				std::cerr << "WARNING: decoding packets failed at " <<
+					"key #" << knum << " and packet #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore packet
 		}
 		else if (ptag == 0xFA)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized critical subpacket " <<
-					"at key #" << knum << " and packet #" << pnum << std::endl;
+			{
+				std::cerr << "WARNING: unrecognized critical subpacket at " <<
+					"key #" << knum << " and packet #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore signature with critical subpacket
 		}
 		else if (ptag == 0xFB)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized subpacket found " <<
-					"at key #" << knum << " and packet #" << pnum << std::endl;
+			{
+				std::cerr << "WARNING: unrecognized subpacket found at " <<
+					"key #" << knum << " and packet #" << pnum << std::endl;
+			}
 			ptag = 0x02; // process signature anyway
 		}
 		else if (ptag == 0xFC)
 		{
 			if (verbose)
+			{
 				std::cerr << "WARNING: unrecognized signature packet found " <<
 					"at key #" << knum << " and packet #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore packet
 		}
 		else if (ptag == 0xFD)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized key packet found " <<
-					"at key #" << knum << " and packet #" << pnum << std::endl;
+			{
+				std::cerr << "WARNING: unrecognized key packet found at " <<
+					"key #" << knum << " and packet #" << pnum << std::endl;
+			}
 			if ((ctx.tag == 14) || (ctx.tag == 7))
 			{
 				if (primary && !badkey && subkey)
@@ -16998,8 +18928,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyringParse
 		else if (ptag == 0xFE)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized OpenPGP packet found " <<
-					"at key #" << knum << " and packet #" << pnum << std::endl;
+			{
+				std::cerr << "WARNING: unrecognized packet found at " <<
+					"key #" << knum << " and packet #" << pnum << std::endl;
+			}
 		}
 		// ignore all packets of an unrecognized key block
 		if (ignore && (ptag != 6))
@@ -17015,7 +18947,8 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyringParse
 			case 2: // Signature Packet
 				ret = PublicKeyBlockParse_Tag2(ctx, verbose, primary,
 					subkey, badkey, uid_flag, uat_flag,
-					current_packet, embedded_pkt, pub, sub, uid, uat);
+					current_packet, embeddedsigs, recipientfprs,
+					embedded_pkt, pub, sub, uid, uat);
 				break;
 			case 6: // Public-Key Packet
 				PublicKeyringParse_Add(verbose, primary, subkey, badkey,
@@ -17037,8 +18970,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyringParse
 				break;
 			default:
 				if (verbose > 1)
-					std::cerr << "INFO: OpenPGP packet with tag " <<
+				{
+					std::cerr << "INFO: packet with tag " <<
 						(int)ptag << " ignored" << std::endl;
+				}
 				break;
 		}
 		// cleanup allocated buffers and mpi's
@@ -17088,8 +19023,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PublicKeyringParse
 	if (type != TMCG_OPENPGP_ARMOR_PUBLIC_KEY_BLOCK)
 	{
 		if (verbose)
-			std::cerr << "ERROR: wrong type of ASCII Armor found" <<
-				" (type = " << (int)type << ")" << std::endl;
+		{
+			std::cerr << "ERROR: wrong type of ASCII Armor found " <<
+				"(type = " << (int)type << ")" << std::endl;
+		}
 		return false;
 	}
 	return PublicKeyringParse(pkts, verbose, ring);
@@ -17118,28 +19055,37 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse
 		tmcg_openpgp_packet_ctx_t ctx;
 		tmcg_openpgp_octets_t current_packet;
 		tmcg_openpgp_notations_t notations;
+		tmcg_openpgp_multiple_octets_t embeddedsigs, recipientfprs;
+		tmcg_openpgp_multiple_octets_t attestedcerts;
 		if (embedded_pkt.size())
 		{
 			ptag = PacketDecode(embedded_pkt, verbose, ctx, current_packet,
-				notations);
+				notations, embeddedsigs, recipientfprs);
 			if (verbose > 2)
+			{
 				std::cerr << "INFO: [EMBEDDED] PacketDecode() = " <<
 					(int)ptag << " version = " << (int)ctx.version << std::endl;
+			}
 			embedded_pkt.clear();
 		}
 		else
 		{
-			ptag = PacketDecode(pkts, verbose, ctx, current_packet, notations);
+			ptag = PacketDecode(pkts, verbose, ctx, current_packet, notations,
+				embeddedsigs, recipientfprs);
 			++pnum;
 			if (verbose > 2)
-				std::cerr << "INFO: PacketDecode() = " <<
-					(int)ptag << " version = " << (int)ctx.version << std::endl;
+			{
+				std::cerr << "INFO: PacketDecode() = " << (int)ptag <<
+					" version = " << (int)ctx.version << std::endl;
+			}
 		}
 		if (ptag == 0x00)
 		{
 			if (verbose)
-				std::cerr << "ERROR: decoding OpenPGP packets failed " <<
-					"at packet #" << pnum << std::endl;
+			{
+				std::cerr << "ERROR: decoding packets failed at " <<
+					"packet #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			if (prv)
 				delete prv;
@@ -17154,23 +19100,29 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse
 		else if (ptag == 0xFA)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized critical OpenPGP " <<
-					"subpacket found at #" << pnum << std::endl;
+			{
+				std::cerr << "WARNING: unrecognized critical subpacket " <<
+					"found at #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore signature with critical subpacket
 		}
 		else if (ptag == 0xFB)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized OpenPGP subpacket " <<
+			{
+				std::cerr << "WARNING: unrecognized subpacket " <<
 					"found at #" << pnum << std::endl;
+			}
 			ptag = 0x02; // process signature
 		}
 		else if (ptag == 0xFC)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized OpenPGP signature " <<
-					"packet found at #" << pnum << std::endl;
+			{
+				std::cerr << "WARNING: unrecognized signature packet " <<
+					"found at #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore packet
 		}
@@ -17179,8 +19131,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse
 			if (primary)
 			{
 				if (verbose)
-					std::cerr << "WARNING: unrecognized OpenPGP key packet" <<
-						" found at #" << pnum << std::endl;
+				{
+					std::cerr << "WARNING: unrecognized key packet " <<
+						"found at #" << pnum << std::endl;
+				}
 				if (!badkey && subkey)
 				{
 					prv->private_subkeys.push_back(sub);
@@ -17193,8 +19147,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse
 			else
 			{
 				if (verbose)
+				{
 					std::cerr << "ERROR: public-key algorithm " <<
 						(int)ctx.pkalgo << " not supported" << std::endl;
+				}
 				PacketContextRelease(ctx);
 				return false;
 			}
@@ -17202,17 +19158,28 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse
 		else if (ptag == 0xFE)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized OpenPGP packet" <<
-					" found at #" << pnum << std::endl;
+			{
+				std::cerr << "WARNING: unrecognized packet " <<
+					"found at #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore packet
 		}
 		switch (ptag)
 		{
 			case 2: // Signature Packet
-				ret = PublicKeyBlockParse_Tag2(ctx, verbose, primary,
-					subkey, badkey, uid_flag, uat_flag,	current_packet,
-					embedded_pkt, prv->pub, sub->pub, uid, uat);
+				if (prv == NULL)
+					ret = false; // bad order of packets
+				else
+				{
+					TMCG_OpenPGP_Subkey *subpub = NULL;
+					if (sub != NULL)
+						subpub = sub->pub;
+					ret = PublicKeyBlockParse_Tag2(ctx, verbose, primary,
+						subkey, badkey, uid_flag, uat_flag,
+						current_packet, embeddedsigs, recipientfprs,
+						embedded_pkt, prv->pub, subpub, uid, uat);
+				}
 				break;
 			case 5: // Secret-Key Packet
 				if (!PrivateKeyBlockParse_Decrypt(ctx, verbose, passphrase))
@@ -17237,17 +19204,29 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse
 				}
 				break;
 			case 13: // User ID Packet
-				ret = PublicKeyBlockParse_Tag13(ctx, verbose, primary,
-					current_packet, uid_flag, uat_flag, prv->pub, uid, uat);
+				if (prv == NULL)
+					ret = false; // bad order of packets
+				else
+				{
+					ret = PublicKeyBlockParse_Tag13(ctx, verbose, primary,
+						current_packet, uid_flag, uat_flag, prv->pub, uid, uat);
+				}
 				break;
 			case 17: // User Attribute Packet
-				ret = PublicKeyBlockParse_Tag17(ctx, verbose, primary,
-					current_packet, uid_flag, uat_flag, prv->pub, uid, uat);
+				if (prv == NULL)
+					ret = false; // bad order of packets
+				else
+				{
+					ret = PublicKeyBlockParse_Tag17(ctx, verbose, primary,
+						current_packet, uid_flag, uat_flag, prv->pub, uid, uat);
+				}
 				break;
 			default:
 				if (verbose > 1)
-					std::cerr << "INFO: OpenPGP packet with tag " <<
+				{
+					std::cerr << "INFO: packet with tag " <<
 						(int)ptag << " ignored" << std::endl;
+				}
 				break;
 		}
 		// cleanup allocated buffers and mpi's
@@ -17299,8 +19278,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::PrivateKeyBlockParse
 	if (type != TMCG_OPENPGP_ARMOR_PRIVATE_KEY_BLOCK)
 	{
 		if (verbose)
-			std::cerr << "ERROR: wrong type of ASCII Armor found" <<
-				" (type = " << (int)type << ")" << std::endl;
+		{
+			std::cerr << "ERROR: wrong type of ASCII Armor found " <<
+				"(type = " << (int)type << ")" << std::endl;
+		}
 		return false;
 	}
 	return PrivateKeyBlockParse(pkts, verbose, passphrase, prv);
@@ -17317,7 +19298,7 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse
 	tmcg_openpgp_octets_t pkts;
 	pkts.insert(pkts.end(), in.begin(), in.end());
 	// parse the message packet by packet
-	bool stop = false, kseq = false;
+	bool stop = false, cmsg = false, lmsg = false, emsg = false, smsg = false;
 	tmcg_openpgp_byte_t ptag = 0xFF;
 	size_t pnum = 0;
 	while (pkts.size() && !stop)
@@ -17326,77 +19307,107 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse
 		tmcg_openpgp_packet_ctx_t ctx;
 		tmcg_openpgp_octets_t current_packet;
 		tmcg_openpgp_notations_t notations;
-		ptag = PacketDecode(pkts, verbose, ctx, current_packet, notations);
+		tmcg_openpgp_multiple_octets_t embeddedsigs, recipientfprs;
+		ptag = PacketDecode(pkts, verbose, ctx, current_packet, notations,
+			embeddedsigs, recipientfprs);
 		++pnum;
 		if (verbose > 2)
+		{
 			std::cerr << "INFO: PacketDecode() = " <<
 				(int)ptag << " version = " << (int)ctx.version << std::endl;
+		}
 		if (ptag == 0x00)
 		{
 			if (verbose)
-				std::cerr << "ERROR: decoding OpenPGP packets failed " <<
+			{
+				std::cerr << "ERROR: decoding packets failed " <<
 					"at packet #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			return false;
 		}
 		else if (ptag == 0xFA)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized critical OpenPGP " <<
-					"subpacket found at #" << pnum << std::endl;
+			{
+				std::cerr << "WARNING: unrecognized critical subpacket " <<
+					"found at #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore signature with critical subpacket
 		}
 		else if (ptag == 0xFB)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized OpenPGP subpacket " <<
+			{
+				std::cerr << "WARNING: unrecognized subpacket " <<
 					"found at #" << pnum << std::endl;
+			}
 			ptag = 0x02; // process signature
 		}
 		else if (ptag == 0xFC)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized OpenPGP signature " <<
-					"packet found at #" << pnum << std::endl;
+			{
+				std::cerr << "WARNING: unrecognized signature packet " <<
+					"found at #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore packet
 		}
 		else if (ptag == 0xFD)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized OpenPGP key packet " <<
+			{
+				std::cerr << "WARNING: unrecognized key packet " <<
 					"found at #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore packet
 		}
 		else if (ptag == 0xFE)
 		{
 			if (verbose)
-				std::cerr << "WARNING: unrecognized OpenPGP packet " <<
+			{
+				std::cerr << "WARNING: unrecognized packet " <<
 					"found at #" << pnum << std::endl;
+			}
 			PacketContextRelease(ctx);
 			continue; // ignore packet
 		}
 		switch (ptag)
 		{
 			case 1: // Public-Key Encrypted Session Key
-				ret = MessageParse_Tag1(ctx, verbose, current_packet, msg);
-				kseq = true;
+				if (cmsg || lmsg)
+					ret = false; // OpenPGP structure error detected
+				else
+					ret = MessageParse_Tag1(ctx, verbose, current_packet, msg);
+				emsg = true;
 				break;
 			case 2: // Signature
-				ret = MessageParse_Tag2(ctx, verbose, current_packet, msg);
-				if (kseq)
-					ret = false; // ESK sequence detected
+				if ((cmsg || lmsg || emsg) && !smsg)
+					ret = false; // OpenPGP structure error detected
+				else
+					ret = MessageParse_Tag2(ctx, verbose, current_packet,
+						embeddedsigs, recipientfprs, msg);
+				smsg = true;
 				break;
 			case 3: // Symmetric-Key Encrypted Session Key
-				ret = MessageParse_Tag3(ctx, verbose, current_packet, msg);
-				kseq = true;
+				if (cmsg || lmsg)
+					ret = false; // OpenPGP structure error detected
+				else
+					ret = MessageParse_Tag3(ctx, verbose, current_packet, msg);
+				emsg = true;
 				break;
 			case 4: // One-Pass Signature
+				if ((cmsg || lmsg || emsg) && !smsg)
+					ret = false; // OpenPGP structure error detected
 				if (verbose)
-					std::cerr << "WARNING: one-pass signature OpenPGP packet" <<
-						" found; not supported and ignored" << std::endl;
+				{
+					std::cerr << "WARNING: one-pass signature packet " <<
+						"found; not supported and ignored" << std::endl;
+				}
+				smsg = true;
 				break;
 			case 8: // Compressed Data
 				if (ctx.indetlen && msg->have_seipd &&
@@ -17404,8 +19415,11 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse
 				{
 					// handle MDC, if COMP packet has indeterminate length
 					if (verbose)
-						std::cerr << "WARNING: assume MDC at the end of COMP" <<
-							" packet (indeterminate length)" << std::endl;
+					{
+						std::cerr << "WARNING: assume MDC at the end of " <<
+							"compressed packet (indeterminate length)" <<
+							std::endl;
+					}
 					ctx.compdatalen -= 22;
 					for (size_t i = 0; i < 22; i++)
 					{
@@ -17413,13 +19427,20 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse
 						current_packet.pop_back();
 					}
 				}
-				ret = MessageParse_Tag8(ctx, verbose, current_packet, msg);
-				if (kseq)
-					ret = false; // ESK sequence detected
+				if (cmsg || lmsg || emsg)
+					ret = false; // OpenPGP structure error detected
+				else
+					ret = MessageParse_Tag8(ctx, verbose, current_packet, msg);
+				cmsg = true;
 				break;
 			case 9: // Symmetrically Encrypted Data
-				ret = MessageParse_Tag9(ctx, verbose, current_packet, msg);
-				stop = true; // ensures well-formedness of an OpenPGP message
+				if (cmsg || lmsg)
+					ret = false; // OpenPGP structure error detected
+				else
+					ret = MessageParse_Tag9(ctx, verbose, current_packet, msg);
+				if (!smsg)
+					stop = true; // ensures well-formedness of OpenPGP message
+				emsg = true;
 				break;
 			case 11: // Literal Data
 				if (ctx.indetlen && msg->have_seipd &&
@@ -17427,8 +19448,11 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse
 				{
 					// handle MDC, if LIT packet has indeterminate length
 					if (verbose)
-						std::cerr << "WARNING: assume MDC at the end of LIT" <<
-							" packet (indeterminate length)" << std::endl;
+					{
+						std::cerr << "WARNING: assume MDC at the end of " <<
+							"literal packet (indeterminate length)" <<
+							std::endl;
+					}
 					ctx.datalen -= 22;
 					for (size_t i = 0; i < 22; i++)
 					{
@@ -17436,28 +19460,44 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse
 						current_packet.pop_back();
 					}
 				}
-				ret = MessageParse_Tag11(ctx, verbose, current_packet, msg);
-				if (kseq)
-					ret = false; // ESK sequence detected
+				if (cmsg || lmsg || emsg)
+					ret = false; // OpenPGP structure error detected
+				else
+					ret = MessageParse_Tag11(ctx, verbose, current_packet, msg);
+				lmsg = true;
 				break;
 			case 18: // Symmetrically Encrypted Integrity Protected Data
-				ret = MessageParse_Tag18(ctx, verbose, current_packet, msg);
-				stop = true; // ensures well-formedness of an OpenPGP message
+				if (cmsg || lmsg)
+					ret = false; // OpenPGP structure error detected
+				else
+					ret = MessageParse_Tag18(ctx, verbose, current_packet, msg);
+				if (!smsg)
+					stop = true; // ensures well-formedness of OpenPGP message
+				emsg = true;
 				break;
 			case 19: // Modification Detection Code
-				ret = MessageParse_Tag19(ctx, verbose, current_packet, msg);
-				stop = true; // ensures well-formedness of an OpenPGP message
-				if (kseq)
-					ret = false; // ESK sequence detected
+				if (emsg)
+					ret = false; // OpenPGP structure error detected
+				else
+					ret = MessageParse_Tag19(ctx, verbose, current_packet, msg);
+				if (!smsg)
+					stop = true; // ensures well-formedness of OpenPGP message
 				break;
 			case 20: // AEAD Encrypted Data [draft RFC 4880bis]
-				ret = MessageParse_Tag20(ctx, verbose, current_packet, msg);
-				stop = true; // ensures well-formedness of an OpenPGP message
+				if (cmsg || lmsg)
+					ret = false; // OpenPGP structure error detected
+				else
+					ret = MessageParse_Tag20(ctx, verbose, current_packet, msg);
+				if (!smsg)
+					stop = true; // ensures well-formedness of OpenPGP message
+				emsg = true;
 				break;
 			default:
 				if (verbose > 1)
-					std::cerr << "INFO: OpenPGP packet with tag " <<
-						(int)ptag << " ignored" << std::endl;
+				{
+					std::cerr << "INFO: packet with tag " << (int)ptag <<
+						" ignored" << std::endl;
+				}
 				break;
 		}
 		// cleanup allocated buffers and mpi's
@@ -17478,8 +19518,10 @@ bool CallasDonnerhackeFinneyShawThayerRFC4880::MessageParse
 	if (type != TMCG_OPENPGP_ARMOR_MESSAGE)
 	{
 		if (verbose)
+		{
 			std::cerr << "ERROR: wrong type of ASCII Armor " <<
 				"found (type = " << (int)type << ")" << std::endl;
+		}
 		return false;
 	}
 	return MessageParse(pkts, verbose, msg);

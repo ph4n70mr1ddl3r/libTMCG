@@ -19,9 +19,10 @@
 @copying
 This is the reference manual of LibTMCG.
 
-Revision 20190315.
+Revision 20190929.
 
-Copyright @copyright{} 2005--2007, 2009, 2015--2019 Heiko Stamer <@email{HeikoStamer@@gmx.net}>.
+Copyright @copyright{} 2005--2007, 2009, 2015--2019
+Heiko Stamer <@email{HeikoStamer@@gmx.net}>.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -38,13 +39,11 @@ Free Documentation License''.
 @subtitle Version @value{VERSION}
 @subtitle @today{}
 @sp 9
-@c @center @titlefont{@math{@clubsuit@qquad@quad@spadesuit@qquad@quad@heartsuit@qquad@quad@diamondsuit}}
 @sp 2
 @center @titlefont{An Implementation of the}
 @vskip 10pt
 @center @titlefont{Toolbox for Mental Card Games}
 @sp 2
-@c @center @titlefont{@math{@diamondsuit@qquad@quad@heartsuit@qquad@quad@spadesuit@qquad@quad@clubsuit}}
 
 @author Heiko Stamer <@email{HeikoStamer@@gmx.net}>
 
@@ -212,6 +211,12 @@ papers:
 	@emph{Secure and Efficient Asynchronous Broadcast Protocols.}@*
 	Advances in Cryptology -- Proceedings of CRYPTO' 01, Lecture Notes in Computer Science 2139, pp. 524--541, 2001.@*
 	@uref{http://shoup.net/papers/ckps.pdf}
+@end quotation
+@quotation [CGR06]
+	@sc{Christian Cachin}, @sc{Rachid Guerraoui}, and @sc{Luis Rodrigues}.
+	@emph{Reliable and Secure Distributed Programming.}@*
+	Springer, 2006.@*
+	@uref{https://www.distributedprogramming.net/}
 @end quotation
 
 @c **********************************************************
@@ -411,14 +416,14 @@ number of parties @math{t} who act faulty or even malicious (the so-called
 For example, in almost full asynchronous environments like the Internet
 resilience (sometimes called robustness) is achievable for @math{t < n/3} only,
 where @math{n} denotes the total number of parties engaged in the protocol.
-LibTMCG provides a well-known protocol for simple reliable broadcast due to
-Bracha (see @emph{An asynchronous [(n - 1)/3]-resilient consensus protocol},
+LibTMCG provides a well-known protocol for reliable broadcast due to Bracha
+(see @emph{An asynchronous [(n - 1)/3]-resilient consensus protocol},
 Proceedings of 3rd ACM Symposium on Principles of Distributed Computing, 1984)
 in a slightly optimized variant by Cachin, Kursawe, Petzold, and
 Shoup@tie{}[CKPS01]. This protocol does not solve the even more fundamental
 consensus problem, because it does not guarantee termination. Please note that
 the application programmer must decide, where the use of such a limited
-broadcast channel is neccesary and appropriate. However, without reliable
+broadcast channel is required and appropriate. However, without reliable
 broadcast you should take into account that not necessarily the player acting
 as prover is the source of evil, if a verification procedure fails. This level
 of uncertainty is the main reason for our still limited adversary model.
@@ -495,9 +500,9 @@ of private (i.e. untappable and authenticated) point-to-point channels.
 
 There is an important distinction between @emph{fully synchronous} and
 @emph{partially synchronous} communication model with respect to coverage
-and the resulting adverserial power. However, a detailed discussion of such issues
-is beyond the scope of this manual. The reader is referred to the famous textbook
-@cite{@uref{http://www.distributedprogramming.net/,,Introduction to Reliable and Secure Distributed Programming}}
+and the resulting adverserial power. However, a detailed discussion of such
+issues is beyond the scope of this manual. The reader is referred to the famous
+textbook @cite{@uref{http://www.distributedprogramming.net/,,Introduction to Reliable and Secure Distributed Programming}}
 for an introduction and discussion on that topic.
 
 @c **********************************************************
@@ -509,7 +514,7 @@ application properly. The following list gives a short exposition
 of the used features and specifies the required versions:
 @itemize @bullet
 	@item GNU Multiple Precision Arithmetic Library (@file{libgmp}),
-		Version@tie{}@math{\ge}@tie{}4.2.0
+		Version@tie{}@math{\ge}@tie{}6.1.2
 		
 		The library provides a powerful framework for performing
 		arbitrary precision arithmetic on integers. Further reasons
@@ -518,19 +523,18 @@ of the used features and specifies the required versions:
 		reasonable performance.
 		
 	@item GNU Crypto Library (@file{libgcrypt}),
-		Version@tie{}@math{\ge}@tie{}1.6.0
+		Version@tie{}@math{\ge}@tie{}1.8.0
 		
 		The library provides some basic cryptographic algorithms
-		(e.g. SHA-256, AES256, ElGamal, DSA, RSA) and an easily
-		accessible interface for cryptographically strong pseudo
-		random numbers. If a version @tie{}@math{\ge}@tie{}1.7.0
-		is found, then also the hash function SHA-3 will be used.
+		(e.g. SHA-256, SHA-3, AES256, ElGamal, DSA, RSA) and an
+		easily accessible interface for cryptographically strong
+		pseudo random numbers.
 	
 	@item GNU Privacy Guard Error Code Library (@file{libgpg-error}),
-		Version@tie{}@math{\ge}@tie{}1.12
+		Version@tie{}@math{\ge}@tie{}1.27
 		
-		This library defines common error values, e.g., returned by the
-		GNU Crypto Library.
+		This library defines common error values, e.g., returned
+		by the GNU Crypto Library.
 @end itemize
 We suppose that the reader is familiar with these libraries
 because their correct installation, configuration, and usage
@@ -573,9 +577,9 @@ corresponding directory to the compilers include file search path.
 
 However, the path to the include file has been determined at the time
 the source is configured. To solve this problem, LibTMCG ships with a
-small helper program @command{libTMCG-config} that knows the path to the
-include file and a few other configuration options. The options that
-need to be added to the compiler invocation are output by the
+small helper program @command{libTMCG-config} that knows the path to
+the include file and a few other configuration options. The options
+that need to be added to the compiler invocation are output by the
 @option{--cflags} option to @command{libTMCG-config}. The following
 example shows how it can be used at the command line:
 
@@ -671,16 +675,16 @@ containing the version number of the library in a common format. It
 is strongly recommended to check, whether the installed version
 matches your requirements.
 
-@deftypefun const std::string version_libTMCG ()
+@deftypefun std::string version_libTMCG ()
 This function returns the version of the library in the
 format @emph{major.minor.revision}.
 @end deftypefun
 
 Last but not least, there is a function @code{identifier_libTMCG}
 which returns an identifier of LibTMCG including the version,
-copyright mark and license.
+a copyright mark, and the license.
 
-@deftypefun const std::string identifier_libTMCG ()
+@deftypefun std::string identifier_libTMCG ()
 This function returns an identifier of the library.
 @end deftypefun
 
@@ -713,8 +717,8 @@ probability @math{{} \le 4^{-64}}.
 Defines the maximum number of iterations for the prover in cut-and-choose
 style zero-knowledge protocols of Schindelhauer's toolbox.
 The default value is @code{80} which limits the soundness error
-probability to @math{{} \ge 2^{-80}}, however, it protects against some obvious
-denial-of-service attacks from a malicious verifier.
+probability to @math{{} \ge 2^{-80}}, however, it protects against some
+obvious denial-of-service attacks from a malicious verifier.
 @end defmac
 
 @defmac TMCG_GROTH_L_E
@@ -744,40 +748,43 @@ derived classes from @code{aiounicast}. The default value is @code{256}.
 @end defmac
 
 @defmac TMCG_GCRY_MD_ALGO
-Defines the main message digest algorithm (i.e. hash function @math{h()}) for digital signatures with
-PRab@tie{}[BR96] and mask generation for Rabin encryption with SEAP@tie{}[Bo01] in @code{TMCG_SecretKey}.
-This algorithm is also used for the construction of a special hash function @math{g()}, which is
+Defines the main message digest algorithm (i.e. hash function @math{h()}) for
+digital signatures with PRab@tie{}[BR96] and mask generation for Rabin
+encryption with SEAP@tie{}[Bo01] in @code{TMCG_SecretKey}. This algorithm is
+also used for the construction of a special hash function @math{g()}, which is
 needed for the Fiat-Shamir heuristic@tie{}[FS87]. Recently we switched
-@footnote{In former versions of LibTMCG the default value of this symbol was @code{GCRY_MD_RMD160},
-i.e. the hash algorithm RIPEMD-160 (see Dobbertin, Bosselaers, Preneel: @emph{RIPEMD-160,
-a strengthened version of RIPEMD}, 1996), which is a function that has only an output length
-of 160 bit.} 
-to the hash function SHA-256 (default value @code{GCRY_MD_SHA256}@footnote{This is also a
-constant defined by the GNU Crypto Library.}) for improved collision resistance.
-Thus we gain a security level of approximately @math{2^{128}}, assuming
-that a birthday-attack is the best known attack against this message digest.
+@footnote{In former versions of LibTMCG the default value of this symbol was
+@code{GCRY_MD_RMD160}, i.e. the hash algorithm RIPEMD-160 (see Dobbertin,
+Bosselaers, Preneel: @emph{RIPEMD-160, a strengthened version of RIPEMD}, 1996),
+which is a function that has only an output length of 160 bit.} 
+to the hash function SHA-256 (default value @code{GCRY_MD_SHA256}@footnote{This
+is also a constant defined by the GNU Crypto Library.}) for improved collision
+resistance. Thus we gain a security level of approximately @math{2^{128}},
+assuming that a birthday-attack is the best known attack against this message
+digest.
 
 Please note that the security of the non-interactive zero-knowledge proofs resp.
 arguments (NIZK) is proved in the so-called random oracle model (ROM), i.e., we
-suppose that the instantiated hash function @math{g()} behaves like an ideal random function
-(which obviously cannot hold in a real world scenario with deterministic computations).
-However, this assumption seems to be reasonable, if the underlying hash function is
-collision-resistant and if it is carefully implemented with respect to other
-instantiations@tie{}[BR93].
+suppose that the instantiated hash function @math{g()} behaves like an ideal
+random function (which obviously cannot hold in a real world scenario with
+deterministic computations). However, this assumption seems to be reasonable,
+if the underlying hash function is collision-resistant and if it is carefully
+implemented with respect to other instantiations@tie{}[BR93].
 @end defmac
 
 @defmac TMCG_GCRY_MAC_ALGO
-Defines the message authentication algorithm for authenticated channels established
-by the class @code{aiounicast}. The default value is @code{GCRY_MAC_HMAC_SHA256}
-@footnote{This is also a constant defined by the GNU Crypto Library.}, i.e.
-the HMAC based scheme with hashing algorithm SHA-256.
+Defines the message authentication algorithm for authenticated channels
+established by the class @code{aiounicast}. The default value is
+@code{GCRY_MAC_HMAC_SHA256}@footnote{This is also a constant defined by the GNU
+Crypto Library.}, i.e. the HMAC based scheme with hashing algorithm SHA-256.
 @end defmac
 
 @defmac TMCG_GCRY_ENC_ALGO
-Defines the symmetric encryption algorithm (sometimes also called cipher) for private channels
-established by the class @code{aiounicast}. The default value is @code{GCRY_CIPHER_AES256}
-@footnote{This is also a constant defined by the GNU Crypto Library.}, i.e.
-the cipher AES256, which is used by LibTMCG in CFB (Cipher Feedback) mode.
+Defines the symmetric encryption algorithm (sometimes also called cipher) for
+private channels established by the class @code{aiounicast}. The default value
+is @code{GCRY_CIPHER_AES256}@footnote{This is also a constant defined by the
+GNU Crypto Library.}, i.e. the cipher AES256, which is used by LibTMCG in
+CFB (Cipher Feedback) or in CTR (Counter) mode.
 @end defmac
 
 @defmac TMCG_KEYID_SIZE
@@ -828,14 +835,14 @@ Schindelhauer.
 
 @defmac TMCG_LIBGCRYPT_VERSION
 Defines the required minimum version number of the GNU Crypto Library.
-The default value is @code{"1.6.0"}. During the initialization of
+The default value is @code{"1.8.0"}. During the initialization of
 LibTMCG (see @code{init_libTMCG}) it is checked, whether the
 version number of the linked shared object fulfills this condition.
 @end defmac
 
 @defmac TMCG_LIBGMP_VERSION
 Defines the required minimum version number of the GNU Multiple Precision
-Arithmetic Library. The default value is @code{"4.2.0"}. During the
+Arithmetic Library. The default value is @code{"6.1.2"}. During the
 initialization of LibTMCG (see @code{init_libTMCG}) it is checked,
 whether the version number provided by the header file @file{gmp.h}
 and used at compile time of LibTMCG fulfills this condition.
@@ -916,10 +923,10 @@ and memory allocation. Currently it is only relevant for the generators
 @end defmac
 
 @defmac TMCG_MAX_SSRANDOMM_CACHE
-Define the maximum size of the cache for function @code{mpz_ssrandomm}. The cache
-must be proper initialized and is useful in interactive protocols, where entropy
-is limited and a lot of very secure randomness is required immediately. Thus some
-values should be aquired and cached before the protocol starts.  
+Define the maximum size of the cache for function @code{mpz_ssrandomm}. The
+cache must be proper initialized and is useful in interactive protocols, where
+entropy is limited and a lot of very secure randomness is required immediately.
+Thus some values should be aquired and cached before the protocol starts.  
 The default value is @code{256}.
 @end defmac
 
@@ -941,11 +948,12 @@ not explained.
 @node Data Types
 @subsection Data Types
 @cindex Data Types
-LibTMCG provides several data structures for cards, stacks, and cryptographic keys.
+LibTMCG provides several data structures for cards, stacks, and cryptographic
+keys.
 
 @subsubsection Encoding Schemes for Cards
 @cindex Card Encoding Schemes
-There exist two different encoding schemes that can be used
+There are two different encoding schemes that can be used
 for the digital representation of playing cards. In the
 scheme of Schindelhauer@tie{}[Sc98] the type of a card is
 shared among the players through bit-wise representation
@@ -953,22 +961,21 @@ by quadratic (non-)residues. Thus the security relies on
 the well-known @acronym{QRA, Quadratic Residuosity Assumption}.
 Unfortunately, the size of a card grows linearly in the
 number of players and logarithmically in the number of
-card types. Recently the much more efficient
+card types. Therefore the much more efficient
 solution of Barnett and Smart@tie{}[BS03] has been
 implemented. This encoding works on a cyclic group of
 prime order and requires that the @acronym{DDH, Decisional
 Diffie-Hellman Assumption} holds there.
 
 For both schemes LibTMCG provides a structure whose name contains the
-suffix @code{Card}. This data type is used to represent an open
-or even a masked card. Further, there is a corresponding structure whose
-name contains the suffix @code{CardSecret}. This data type is
-used to represent the secret values involved in a card masking operation.
+suffix @code{Card}. This data type is used to represent an open or even a
+masked card. Further, there is a corresponding structure whose name contains
+the suffix @code{CardSecret}. This data type is used to represent the secret
+values involved in a card masking operation.
 
 Because of the reduced computational and communication complexity
-(see@tie{}[St05] for more details) the usage of the second card
-encoding scheme, i.e. @code{VTMF_Card} and @code{VTMF_CardSecret}, is
-highly recommended.
+(see@tie{}[St05] for more details) the usage of the second card encoding scheme,
+i.e. @code{VTMF_Card} and @code{VTMF_CardSecret}, is highly recommended.
 
 @deftp {Data type} TMCG_Card
 	This @code{struct} represents a card in the encoding scheme
@@ -1214,8 +1221,8 @@ highly recommended.
 		According to the results of Koshiba and Kurosawa (see @emph{Short Exponent
 		Diffie-Hellman Problems}, PKC@tie{}2004, LNCS@tie{}2947) the length of
 		this exponent can be shorten to a more efficient size (e.g. 160@tie{}bit),
-		if the corresponding generator of @math{G} is adjusted as well. Under the
-		additional @acronym{DLSE, Discrete Logarithm with Short Exponents}
+		if the corresponding generator of @math{G} is adjusted as well. Under
+		the additional @acronym{DLSE, Discrete Logarithm with Short Exponents}
 		assumption the DDH problem in @math{G} seems to be still hard.
 		By such an optimization trick we gain a great performance advantage for
 		almost all modular exponentiations that are computed during the masking
@@ -1279,8 +1286,8 @@ There is no error reported, if this limit is exceeded.
 	@code{TMCG_Card} or @code{VTMF_Card} depending on which kind of encoding
 	scheme is used. The @code{TMCG_Stack} structure is mainly used to represent
 	a stack of masked cards, i.e., playing cards that are stacked in a face-down
-	manner. It can be either a public stack where all participants have access to
-	or even a private stack, e.g. the players' hand. If the corresponding
+	manner. It can be either a public stack where all participants have access
+	to or even a private stack, e.g. the players' hand. If the corresponding
 	card types are known it can also serve as an ``open stack'', although
 	@code{TMCG_OpenStack} is more suitable in that case.
 	
@@ -1304,14 +1311,15 @@ There is no error reported, if this limit is exceeded.
 	@end deftypeop
 	
 	@deftypeop {Operator} TMCG_Stack bool != (@code{const TMCG_Stack<@var{CardType}>&} that)
-		This operator tests two stacks for inequality. It returns @code{true}, if
-		either the sizes do not match or at least two corresponding cards are
-		not equal.
+		This operator tests two stacks for inequality. It returns @code{true},
+		if either the sizes do not match or at least two corresponding cards
+		are not equal.
 	@end deftypeop
 	
 	@deftypeop {Operator} TMCG_Stack {const @var{CardType}&} [] (@code{const size_t} n)
 		This operator provides read-only random access to the contained cards.
-		It returns a const-reference to the @var{n}th card from the top of the stack.
+		It returns a const-reference to the @var{n}th card from the top of the
+		stack.
 	@end deftypeop
 	
 	@deftypeop {Operator} TMCG_Stack {@var{CardType}&} [] (@code{const size_t} n)
@@ -1389,10 +1397,10 @@ There is no error reported, if this limit is exceeded.
 @deftp {Data type} TMCG_OpenStack<@var{CardType}>
 	This @code{struct} is a simple container for cards of the specified
 	@code{@var{CardType}} whose types are known. The elements are pairs where
-	the first component is the type and the second component is the corresponding
-	card. The card type is represented by a @code{size_t} integer. Currently, the
-	cards can be either of type @code{TMCG_Card} or @code{VTMF_Card} depending on
-	which kind of encoding scheme is used.
+	the first component is the type and the second component is the
+	corresponding card. The card type is represented by a @code{size_t} integer.
+	Currently, the cards can be either of type @code{TMCG_Card} or
+	@code{VTMF_Card} depending on which kind of encoding scheme is used.
 	
 	@deftypecv {Member} TMCG_OpenStack {std::vector<std::pair<size_t, @var{CardType}> >} stack
 		This is the container that is used internally for storing the pairs.
@@ -1408,19 +1416,21 @@ There is no error reported, if this limit is exceeded.
 	@end deftypeop
 	
 	@deftypeop {Operator} TMCG_OpenStack bool == (@code{const TMCG_OpenStack<@var{CardType}>&} that)
-		This operator tests two stacks for equality. It checks whether the types,
-		the sizes, and the contained cards are equal with respect to the stack order.
+		This operator tests two stacks for equality. It checks whether the
+		types, the sizes, and the contained cards are equal with respect to the
+		stack order.
 	@end deftypeop
 	
 	@deftypeop {Operator} TMCG_OpenStack bool != (@code{const TMCG_OpenStack<@var{CardType}>&} that)
-		This operator tests two stacks for inequality. It returns @code{true}, if
-		either the sizes resp. types do not match or at least two corresponding cards
-		are not equal.
+		This operator tests two stacks for inequality. It returns @code{true},
+		if either the sizes resp. types do not match or at least two
+		corresponding cards are not equal.
 	@end deftypeop
 	
 	@deftypeop {Operator} TMCG_OpenStack {const std::pair<size_t, @var{CardType}>&} [] (@code{const size_t} n)
 		This operator provides read-only random access to the contained pairs.
-		It returns a const-reference to the @var{n}th pair from the top of the stack.
+		It returns a const-reference to the @var{n}th pair from the top of the
+		stack.
 	@end deftypeop
 	
 	@deftypeop {Operator} TMCG_OpenStack {std::pair<size_t, @var{CardType}>&} [] (@code{const size_t} n)
@@ -1453,9 +1463,10 @@ There is no error reported, if this limit is exceeded.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_OpenStack bool pop (@code{size_t&} type, @code{@var{CardType}&} c)
-		This method removes a pair from the back of the stack. It stores the card type
-		in @var{type} and the	representation in @var{c}. It returns @code{true}, if the stack
-		was not empty and thus @var{type} and @var{c} contain useful data.
+		This method removes a pair from the back of the stack. It stores the
+		card type in @var{type} and the	representation in @var{c}. It returns
+		@code{true}, if the stack was not empty and thus @var{type} and @var{c}
+		contain useful data.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_OpenStack void clear ()
@@ -1463,23 +1474,25 @@ There is no error reported, if this limit is exceeded.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_OpenStack bool find (@code{const size_t} type)
-		This method returns @code{true}, if a pair with the first component @var{type} was
-		found in the stack.
+		This method returns @code{true}, if a pair with the first component
+		@var{type} was found in the stack.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_OpenStack bool remove (@code{const size_t} type)
-		This method removes the top-most pair with the first component @var{type} from the
-		stack. It returns @code{true}, if such a pair was found and successfully removed.
+		This method removes the top-most pair with the first component
+		@var{type} from the stack. It returns @code{true}, if such a pair was
+		found and successfully removed.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_OpenStack size_t removeAll (@code{const size_t} type)
-		This method removes every pair from the stack whose first component is equal to
-		@var{type}. Further it returns the number of removed pairs.
+		This method removes every pair from the stack whose first component is
+		equal to @var{type}. Further it returns the number of removed pairs.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_OpenStack bool move (@code{const size_t} type, @code{TMCG_Stack<@var{CardType}>&} s)
-	This method moves the top-most card representation of the given @var{type} to another
-	stack @var{s}. It returns @code{true}, if such a pair was found and successfully moved.
+		This method moves the top-most card representation of the given
+		@var{type} to another stack @var{s}. It returns @code{true}, if such
+		a pair was found and successfully moved.
 	@end deftypemethod
 	
 	@defop {Destructor} TMCG_OpenStack ~TMCG_OpenStack ()
@@ -1513,12 +1526,14 @@ There is no error reported, if this limit is exceeded.
 	
 	@deftypeop {Operator} TMCG_StackSecret {const std::pair<size_t, @var{CardSecretType}>&} [] (@code{const size_t} n)
 		This operator provides read-only random access to the contained pairs.
-		It returns a const-reference to the @var{n}th pair from the top of the stack secret.
+		It returns a const-reference to the @var{n}th pair from the top of the
+		stack secret.
 	@end deftypeop
 	
 	@deftypeop {Operator} TMCG_StackSecret {std::pair<size_t, @var{CardSecretType}>&} [] (@code{const size_t} n)
 		This operator provides random access to the contained pairs.
-		It returns a reference to the @var{n}th pair from the top of the stack secret.
+		It returns a reference to the @var{n}th pair from the top of the stack
+		secret.
 	@end deftypeop
 	
 	@deftypemethod TMCG_StackSecret size_t size ()
@@ -1526,8 +1541,9 @@ There is no error reported, if this limit is exceeded.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_StackSecret void push (@code{const size_t} index, @code{const @var{CardSecretType}&} cs)
-		This method pushes a pair to the back of the stack secret. The parameter @var{index}
-		is the permutation index and @var{cs} is the corresponding card secret.
+		This method pushes a pair to the back of the stack secret. The parameter
+		@var{index} is the permutation index and @var{cs} is the corresponding
+		card secret.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_StackSecret void clear ()
@@ -1537,10 +1553,11 @@ There is no error reported, if this limit is exceeded.
 	@deftypemethod TMCG_StackSecret size_t find_position (@code{const size_t} index)
 		This method searches for a given permutation index in the stack secret.
 		It returns the corresponding position@footnote{According to the behavior
-		of the @code{[]}-operator, the zero denotes always the top-most position.} in
-		the stack secret, if the @var{index} was found. Otherwise, the size of
-		the stack secret is returned. Please note that in this case the returned
-		value is not a valid position for an access to the stack secret.
+		of the @code{[]}-operator, the zero denotes always the top-most
+		position.} in the stack secret, if the @var{index} was found. Otherwise,
+		the size of the stack secret is returned. Please note that in this case
+		the returned value is not a valid position for an access to the stack
+		secret.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_StackSecret bool find (@code{const size_t} index)
@@ -1549,8 +1566,8 @@ There is no error reported, if this limit is exceeded.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_StackSecret bool import (@code{std::string} s)
-		This method imports the stack secret from a correctly formatted input string
-		@var{s}. It returns @code{true}, if the import was successful.
+		This method imports the stack secret from a correctly formatted input
+		string @var{s}. It returns @code{true}, if the import was successful.
 	@end deftypemethod
 	
 	@defop {Destructor} TMCG_StackSecret ~TMCG_StackSecret ()
@@ -1559,39 +1576,41 @@ There is no error reported, if this limit is exceeded.
 @end deftp
 
 @deftypeop {Operator} TMCG_StackSecret std::ostream& << (@code{std::ostream&} out, @code{const TMCG_StackSecret<@var{CardSecretType}>&} stacksecret)
-	This operator exports the given @var{stacksecret} to the output stream @var{out}.
+	This operator exports the given @var{stacksecret} to the output stream
+	@var{out}.
 @end deftypeop
 
 @deftypeop {Operator} TMCG_StackSecret std::istream& >> (@code{std::istream&} in, @code{TMCG_StackSecret<@var{CardSecretType}>&} stacksecret)
-	This operator imports the given @var{stacksecret} from the input stream @var{in}.
-	The data has to be delimited by a newline character. The @code{failbit} of
-	the stream is set, if any parse error occurred.
+	This operator imports the given @var{stacksecret} from the input stream
+	@var{in}. The data has to be delimited by a newline character. The
+	@code{failbit} of the stream is set, if any parse error occurred.
 @end deftypeop
 
 @subsubsection Cryptographic Keys
 @cindex Keys
 @cindex TMCG keys
-LibTMCG provides corresponding data types for keys used by the encoding scheme of
-Schindelhauer@tie{}[Sc98], because in this scheme it is not efficient to perform the
-process of key generation for every new game session. These keys are called TMCG keys.
-However, they also can be utilized to encrypt and sign messages for the more general
-reasons of confidentiality and integrity, even if the card encoding scheme of
-Schindelhauer is not used. Therefore these structures may be of independent interest,
-for example to establish authenticated communication channels between players.
-However, like for all public key cryptosystems a trusted @acronym{PKI, Public Key
-Infrastructure} is needed. This might not be a serious problem in distributed
-game environments, because the players can include key fingerprints in their 
-individual profile or a service provider can issue public key certificates.
+LibTMCG provides corresponding data types for keys used by the encoding scheme
+of Schindelhauer@tie{}[Sc98], because in this scheme it is not efficient to
+perform the process of key generation for every new game session. These keys are
+called TMCG keys. However, they also can be utilized to encrypt and sign
+messages for the more general reasons of confidentiality and integrity, even if
+the card encoding scheme of Schindelhauer is not used. Therefore these
+structures may be of independent interest, for example to establish
+authenticated communication channels between players. However, like for all
+public key cryptosystems a trusted @acronym{PKI, Public Key Infrastructure} is
+required. This might not be a serious problem in distributed game environments,
+because the players can include key fingerprints in their individual profile or
+a service provider can issue public key certificates.
 
 @deftp {Data type} TMCG_SecretKey
 	This @code{struct} represents the secret part of the key. The
 	underlying public key cryptosystem is due to Rabin (see @emph{Digitalized
 	Signatures and Public-Key Functions as Intractable as Factorization},
-	MIT Technical Report 212, 1979) and Williams (see @emph{A modification of the
-	RSA public-key encryption procedure}, IEEE Transactions on Information
-	Theory, 26(6):726--729, 1980) with minor modifications for encryption padding
-	(SAEP scheme of Boneh@tie{}[Bo01]) and digital signatures (PRab scheme of
-	Bellare and Rogaway@tie{}[BR96]).
+	MIT Technical Report 212, 1979) and Williams (see @emph{A modification of
+	the RSA public-key encryption procedure}, IEEE Transactions on Information
+	Theory, 26(6):726--729, 1980) with minor modifications for encryption
+	padding (SAEP scheme of Boneh@tie{}[Bo01]) and digital signatures (PRab
+	scheme of Bellare and Rogaway@tie{}[BR96]).
 	
 	@deftypecv {Member} TMCG_SecretKey {std::string} name
 		This string contains the name or a pseudonym of the key owner.
@@ -1609,7 +1628,8 @@ individual profile or a service provider can issue public key certificates.
 		zero-knowledge proof. The single parts of the description are separated	
 		by underscore characters @code{_}, e.g., @code{TMCG/RABIN_2048_NIZK} has
 		the correct form. The suffix can be left empty, if the key is only used
-		for encryption and signing (so-called non-NIZK key) without card encoding.
+		for encryption and signing (so-called non-NIZK key) without card
+		encoding.
 	@end deftypecv
 	
 	@deftypecv {Member} TMCG_SecretKey {std::string} nizk
@@ -1652,11 +1672,11 @@ individual profile or a service provider can issue public key certificates.
 	@end defop
 	
 	@deftypeop {Constructor} TMCG_SecretKey {} TMCG_SecretKey (@code{const std::string&} n, @code{const std::string&} e, @code{const unsigned long int} keysize @code{=TMCG_QRA_SIZE}, @code{const bool} nizk_key @code{=true})
-		This constructor generates a new secret key, where @var{n} is the name or
-		a pseudonym of the owner, @var{e} is a corresponding email address, 
+		This constructor generates a new secret key, where @var{n} is the name
+		or a pseudonym of the owner, @var{e} is a corresponding email address, 
 		@var{keysize} is the desired bit length of the modulus @math{m}, and
-		@var{nizk_key} indicates whether or not a NIZK proof will be appended. The
-		default value of the third argument is set to @code{TMCG_QRA_SIZE},
+		@var{nizk_key} indicates whether or not a NIZK proof will be appended.
+		The default value of the third argument is set to @code{TMCG_QRA_SIZE},
 		if @var{keysize} is omitted in the call. The default value of the fourth
 		argument is set to @code{true}, whenever it is omitted in the call.
 		Depending on @var{keysize} and @var{nizk_key} the generation is a very
@@ -1665,16 +1685,18 @@ individual profile or a service provider can issue public key certificates.
 	@end deftypeop
 	
 	@deftypeop {Constructor} TMCG_SecretKey {} TMCG_SecretKey (@code{const std::string&} s)
-		This constructor initializes the key from a correctly formatted
-		input string @var{s}.
+		This constructor initializes the key from a correctly formatted input
+		string @var{s}.
 	@end deftypeop
 	
 	@deftypeop {Constructor} TMCG_SecretKey {} TMCG_SecretKey (@code{const TMCG_SecretKey&} that)
-		This is a simple copy-constructor and @var{that} is the key to be copied.
+		This is a simple copy-constructor and @var{that} is the key to be
+		copied.
 	@end deftypeop
 	
 	@deftypeop {Operator} TMCG_SecretKey TMCG_SecretKey& = (@code{const TMCG_SecretKey&} that)
-		This is a simple assignment-operator and @var{that} is the key to be assigned.
+		This is a simple assignment-operator and @var{that} is the key to be
+		assigned.
 	@end deftypeop
 	
 	@deftypemethod TMCG_SecretKey bool check ()
@@ -1700,8 +1722,8 @@ individual profile or a service provider can issue public key certificates.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_SecretKey {std::string} keyid (@code{const size_t} size @code{=TMCG_KEYID_SIZE})
-		This method returns the unique key identifier of length @var{size}.
-		The default value of the first argument is set to @code{TMCG_KEYID_SIZE},
+		This method returns the unique key identifier of length @var{size}. The
+		default value of the first argument is set to @code{TMCG_KEYID_SIZE},
 		if @var{size} is omitted in the call.
 	@end deftypemethod
 	
@@ -1735,13 +1757,13 @@ individual profile or a service provider can issue public key certificates.
 	@deftypemethod TMCG_SecretKey {std::string} encrypt (@code{const unsigned char*} value)
 		This method encrypts the content of @var{value} which is a pointer to a
 		character array of size @code{TMCG_SAEP_S0}. The method returns a
-		corresponding encryption packet that can be decrypted by the owner of the
-		secret key.
+		corresponding encryption packet that can be decrypted by the owner of
+		the secret key.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_SecretKey bool verify (@code{const std::string&} data, @code{std::string} s)
-		This method verifies whether the signature @var{s} on @var{data} is valid
-		or not. It returns @code{true}, if everything was sound.
+		This method verifies whether the signature @var{s} on @var{data} is
+		valid or not. It returns @code{true}, if everything was sound.
 	@end deftypemethod
 	
 	@defop {Destructor} TMCG_SecretKey ~TMCG_SecretKey ()
@@ -1775,18 +1797,18 @@ individual profile or a service provider can issue public key certificates.
 		prefix is @code{TMCG/RABIN}. It is followed by the decimal encoded
 		bit size of the modulus @math{m}. The suffix @code{NIZK} signals
 		that the correctness of the key is shown by an appended non-interactive
-		zero-knowledge proof. The single parts of the string are separated by underscore
-		characters @code{_}, e.g., @code{TMCG/RABIN_2048_NIZK} has the correct
-		form. However, the suffix can be left empty, if the key is
+		zero-knowledge proof. The single parts of the string are separated by
+		underscore characters @code{_}, e.g., @code{TMCG/RABIN_2048_NIZK} has
+		the correct form. However, the suffix can be left empty, if the key is
 		only used for encryption and signing.
 	@end deftypecv
 	
 	@deftypecv {Member} TMCG_PublicKey {std::string} nizk
-		This string contains two stages of non-interactive zero-knowledge proof of
-		Gennaro, Micciancio and Rabin@tie{}[GMR98]. This gives strong evidence that
-		@math{m} was generated correctly. Further there is another non-interactive
-		zero-knowledge proof appended which shows that the condition
-		@math{y\in{\bf NQR}^\circ_m} holds.
+		This string contains two stages of non-interactive zero-knowledge proof
+		of Gennaro, Micciancio and Rabin@tie{}[GMR98]. This gives strong
+		evidence that @math{m} was generated correctly. Further there is another
+		non-interactive zero-knowledge proof appended which shows that the
+		condition @math{y\in{\bf NQR}^\circ_m} holds.
 	@end deftypecv
 	
 	@deftypecv {Member} TMCG_PublicKey {std::string} sig
@@ -1795,8 +1817,8 @@ individual profile or a service provider can issue public key certificates.
 	
 	@deftypecv {Member} TMCG_PublicKey {mpz_t} m
 		This is the public modulus @math{m = p \cdot q} which is the product
-		of two secret primes @math{p} and @math{q}. The size of @math{m}
-		is determined by the security parameter @code{TMCG_QRA_SIZE}.
+		of two secret primes @math{p} and @math{q}. The size of @math{m} is
+		determined by the security parameter @code{TMCG_QRA_SIZE}.
 	@end deftypecv
 	
 	@deftypecv {Member} TMCG_PublicKey {mpz_t} y
@@ -1809,16 +1831,18 @@ individual profile or a service provider can issue public key certificates.
 	@end defop
 	
 	@deftypeop {Constructor} TMCG_PublicKey {} TMCG_PublicKey (@code{const TMCG_SecretKey&} skey)
-		This constructor initializes the key using public values
-		of the secret key @var{skey}.
+		This constructor initializes the key using public values of the
+		secret key @var{skey}.
 	@end deftypeop
 	
 	@deftypeop {Constructor} TMCG_PublicKey {} TMCG_PublicKey (@code{const TMCG_PublicKey&} pkey)
-		This is a simple copy-constructor and @var{pkey} is the key to be copied.
+		This is a simple copy-constructor and @var{pkey} is the key to be
+		copied.
 	@end deftypeop
 	
 	@deftypeop {Operator} TMCG_PublicKey TMCG_PublicKey& = (@code{const TMCG_PublicKey&} that)
-		This is a simple assignment-operator and @var{that} is the key to be assigned.
+		This is a simple assignment-operator and @var{that} is the key to be
+		assigned.
 	@end deftypeop
 	
 	@deftypemethod TMCG_PublicKey bool check ()
@@ -1845,8 +1869,8 @@ individual profile or a service provider can issue public key certificates.
 	
 	@deftypemethod TMCG_PublicKey {std::string} keyid (@code{const size_t} size @code{=TMCG_KEYID_SIZE})
 		This method returns the unique key identifier of length @var{size}.
-		The default value of the first argument is set to @code{TMCG_KEYID_SIZE},
-		if @var{size} is omitted in the call.
+		The default value of the first argument is set to
+		@code{TMCG_KEYID_SIZE}, if @var{size} is omitted in the call.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_PublicKey {size_t} keyid_size (@code{const std::string&} s)
@@ -1868,13 +1892,13 @@ individual profile or a service provider can issue public key certificates.
 	@deftypemethod TMCG_PublicKey {std::string} encrypt (@code{const unsigned char*} value)
 		This method encrypts the content of @var{value} which is a pointer to a
 		character array of size @code{TMCG_SAEP_S0}. The method returns a
-		corresponding encryption packet that can be decrypted by the owner of the
-		secret key.
+		corresponding encryption packet that can be decrypted by the owner of
+		the secret key.
 	@end deftypemethod
 	
 	@deftypemethod TMCG_PublicKey bool verify (@code{const std::string&} data, @code{std::string} s)
-		This method verifies whether the signature @var{s} on @var{data} is valid
-		or not. It returns @code{true}, if everything was sound.
+		This method verifies whether the signature @var{s} on @var{data} is
+		valid or not. It returns @code{true}, if everything was sound.
 	@end deftypemethod
 	
 	@defop {Destructor} TMCG_PublicKey ~TMCG_PublicKey ()
@@ -1893,10 +1917,10 @@ individual profile or a service provider can issue public key certificates.
 @end deftypeop
 
 @deftp {Data type} TMCG_PublicKeyRing
-	This @code{struct} is just a simple container for TMCG public keys. There are
-	no particular methods provided by @code{TMCG_PublicKeyRing}. You have to use
-	the regular interface of the STL container @code{std::vector} to access the
-	single keys of the ring.
+	This @code{struct} is just a simple container for TMCG public keys. There
+	are no particular methods provided by @code{TMCG_PublicKeyRing}. You have
+	to use the regular interface of the STL container @code{std::vector} to
+	access the single keys of the ring.
 	
 	@deftypecv {Member} TMCG_PublicKeyRing {std::vector<TMCG_PublicKey>} keys
 		This is the real container that is used to store the keys.
@@ -1923,9 +1947,9 @@ The base class @code{aiounicast} and the corresponding derived classes
 @code{aiounicast_nonblock} and @code{aiounicast_select} provide a simple
 communication interface for asynchronous point-to-point communication channels.
 They can be used to transfer data of type @code{mpz_t} (big integers, see
-@code{libgmp} for explanation of this data type) between up to @math{n} parties,
-that are connected by sockets, pipes or any other file descriptor based
-input/output mechanism.
+@code{libgmp} manual for explanation of this data type) between up to @math{n}
+parties, that are connected by sockets, pipes or any other file descriptor
+based input/output mechanism.
 
 Moreover, the channels can be authenticated by a message authentication code
 and encrypted by a symmetric cipher. The deployed algorithms are defined by
@@ -1956,17 +1980,21 @@ respectively) and fixed at compile time of LibTMCG.
 		This constant defines an extremly long time interval of 300 seconds.
 	@end deftypecv
 	@deftypecv {Member} aiounicast {static const size_t} aio_scheduler_roundrobin
-		This constant represents the round-robin scheduler for message processing.
+		This constant represents the round-robin scheduler for message
+		processing.
 	@end deftypecv
 	@deftypecv {Member} aiounicast {static const size_t} aio_scheduler_random
-		This constant represents the random select scheduler for message processing.
+		This constant represents the random select scheduler for message
+		processing.
 	@end deftypecv
 	@deftypecv {Member} aiounicast {static const size_t} aio_scheduler_direct
-		This constant represents the constant select scheduler for message processing.
+		This constant represents the constant select scheduler for message
+		processing, i.e., only the specified party is selected.
 	@end deftypecv
 
 	@deftypecv {Member} aiounicast {const size_t} n
-		This is the total number of parties @math{n} involved in the communication.
+		This is the total number of parties @math{n} involved in the
+		communication.
 	@end deftypecv
 
 	@deftypecv {Member} aiounicast {const size_t} j
@@ -2001,9 +2029,17 @@ respectively) and fixed at compile time of LibTMCG.
 		The total number of bytes that have been authenticated yet.
 	@end deftypecv
 @end deftp
-Note that the header files @code{aiounicast_nonblock.hh} or @code{aiounicast_select.hh}
-must be included in addition to @code{libTMCG.hh}. The use of class
+Note that the header files @code{aiounicast_nonblock.hh} resp.
+@code{aiounicast_select.hh} must be included in addition to @code{libTMCG.hh},
+if one or both interfaces are required. However, the sole use of the class
 @code{aiounicast_select} is strongly recommended.
+
+In order to use the provided interface in an asynchronous manner, the methods
+@code{Send()} resp. @code{Receive()} should be called inside a corresponding
+loop of the application. A reasonable timeout ensures non-blocking behaviour,
+where the return value of each method indicates whether an operation was
+successful or not.
+ 
 @deftp {Class} aiounicast_nonblock
 	This class works with non-blocking file descriptors, i.e., the pipes or
 	sockets have to be opened with the @code{O_NONBLOCK} flag. The methods use
@@ -2011,7 +2047,7 @@ must be included in addition to @code{libTMCG.hh}. The use of class
 	results in exorbitant CPU load. The class should be used only, if no
 	select system call is available or appropriate for the application.
 
-	@defop {Constructor} aiounicast_nonblock aiounicast_nonblock (@code{const size_t} n_in, @code{const size_t} j_in, @code{const std::vector<int>& } fd_in_in, @code{const std::vector<int>& } fd_out_in, @code{const std::vector<std::string>& } key_in, @code{const size_t} aio_default_scheduler_in @code{=aio_scheduler_roundrobin}, @code{const time_t} aio_default_timeout_in @code{=aio_timeout_long}, @code{const bool} aio_is_authenticated_in @code{=true}, @code{const bool} aio_is_encrypted_in @code{=true})
+	@defop {Constructor} aiounicast_nonblock aiounicast_nonblock (@code{const size_t} n_in, @code{const size_t} j_in, @code{const std::vector<int>& } fd_in_in, @code{const std::vector<int>& } fd_out_in, @code{const std::vector<std::string>& } key_in, @code{const size_t} aio_default_scheduler_in @code{=aio_scheduler_roundrobin}, @code{const time_t} aio_default_timeout_in @code{=aio_timeout_long}, @code{const bool} aio_is_authenticated_in @code{=true}, @code{const bool} aio_is_encrypted_in @code{=true}, @code{const bool} aio_is_chunked_in @code{=false})
 		The constructor initializes internal queues and data structures
 		for asynchronous point-to-point channels connecting @math{n}
 		parties (i.e. @var{n_in}).
@@ -2019,14 +2055,15 @@ must be included in addition to @code{libTMCG.hh}. The use of class
 		@var{j_in}. It is followed by a vector @var{fd_in_in} of exactly
 		@math{n} input file descriptors that are ready for reading
 		and writing, and by a vector @var{fd_out_in} of exactly @math{n}
-		output file descriptors. Finally, the vector @var{key_in} with exactly @math{n}
-		passphrases@footnote{The key derivation function PBKDF2 is applied with
-		an iteration count of 25.000 and a different constant salt to derive the
-		authentication and the encryption key, respectively.} or pre-shared keys
-		is neccesary, if @var{aio_is_authenticated_in} or @var{aio_is_encrypted_in} is
-		set @code{true}, which is the default behaviour. The default values for
-		timeout (in seconds) and the receive scheduler can be modified carefully
-		according to the desired usage scenario.
+		output file descriptors. Finally, the vector @var{key_in} with
+		exactly @math{n} pre-shared passphrases@footnote{The key derivation
+		function PBKDF2 is applied with an iteration count of 25.000 and a
+		different constant salt value to derive the authentication and the
+		encryption key, respectively.} is required, if
+		@var{aio_is_authenticated_in} or @var{aio_is_encrypted_in} is
+		@code{true}, which is the default behaviour for both. The default
+		values for timeout (in seconds) and the applied receive scheduler
+		can be modified carefully according to the desired usage scenario.
 	@end defop
 
 	@deftypemethod aiounicast_nonblock bool Send (@code{mpz_srcptr} m, @code{const size_t} i_in, @code{time_t} timeout @code{=aio_timeout_default})
@@ -2041,7 +2078,8 @@ must be included in addition to @code{libTMCG.hh}. The use of class
 	@end deftypemethod
 
 	@deftypemethod aiounicast_nonblock bool Send (@code{const std::vector<mpz_srcptr>&} m, @code{const size_t} i_in, @code{time_t} timeout @code{=aio_timeout_default})
-		This method works as above, however, a vector @var{m} of integers is sent.
+		This method works as above, however, a vector @var{m} of integers
+		is sent.
 	@end deftypemethod
 
 	@deftypemethod aiounicast_nonblock bool Receive (@code{mpz_ptr} m, @code{size_t&} i_out, @code{size_t} scheduler @code{=aio_scheduler_default}, @code{time_t} timeout @code{=aio_timeout_default})
@@ -2056,7 +2094,8 @@ must be included in addition to @code{libTMCG.hh}. The use of class
 	@end deftypemethod
 
 	@deftypemethod aiounicast_nonblock bool Receive (@code{std::vector<mpz_ptr>&} m, @code{size_t&} i_out, @code{size_t} scheduler @code{=aio_scheduler_default}, @code{time_t} timeout @code{=aio_timeout_default})
-		This method works as above, however, a vector @var{m} of integers is received.
+		This method works as above, however, a vector @var{m} of integers
+		is received.
 	@end deftypemethod
 
 	@defop {Destructor} aiounicast_nonblock ~aiounicast_nonblock ()
@@ -2069,7 +2108,7 @@ must be included in addition to @code{libTMCG.hh}. The use of class
 	to achieve asynchronous I/O. This results in a reasonable CPU load in
 	comparison with @code{aiounicast_nonblock}.
 
-	@defop {Constructor} aiounicast_select aiounicast_select (@code{const size_t} n_in, @code{const size_t} j_in, @code{const std::vector<int>& } fd_in_in, @code{const std::vector<int>& } fd_out_in, @code{const std::vector<std::string>& } key_in, @code{const size_t} aio_default_scheduler_in @code{=aio_scheduler_roundrobin}, @code{const time_t} aio_default_timeout_in @code{=aio_timeout_long}, @code{const bool} aio_is_authenticated_in @code{=true}, @code{const bool} aio_is_encrypted_in @code{=true})
+	@defop {Constructor} aiounicast_select aiounicast_select (@code{const size_t} n_in, @code{const size_t} j_in, @code{const std::vector<int>& } fd_in_in, @code{const std::vector<int>& } fd_out_in, @code{const std::vector<std::string>& } key_in, @code{const size_t} aio_default_scheduler_in @code{=aio_scheduler_roundrobin}, @code{const time_t} aio_default_timeout_in @code{=aio_timeout_long}, @code{const bool} aio_is_authenticated_in @code{=true}, @code{const bool} aio_is_encrypted_in @code{=true}, @code{const bool} aio_is_chunked_in @code{=false})
 		The constructor initializes internal queues and data structures
 		for asynchronous point-to-point channels connecting @math{n}
 		parties (i.e. @var{n_in}).
@@ -2077,14 +2116,24 @@ must be included in addition to @code{libTMCG.hh}. The use of class
 		@var{j_in}. It is followed by a vector @var{fd_in_in} of exactly
 		@math{n} input file descriptors that are ready for reading
 		and writing, and by a vector @var{fd_out_in} of exactly @math{n}
-		output file descriptors. Finally, the vector @var{key_in} with exactly @math{n}
-		passphrases@footnote{The key derivation function PBKDF2 is applied with
-		an iteration count of 25.000 and a different constant salt to derive the
-		authentication and the encryption key, respectively.} or pre-shared keys
-		is neccesary, if @var{aio_is_authenticated_in} or @var{aio_is_encrypted_in} is
-		set @code{true}, which is the default behaviour. The default values for
-		timeout (in seconds) and the receive scheduler can be modified carefully 
-		according to the desired usage scenario.
+		output file descriptors. Finally, the vector @var{key_in} with
+		exactly @math{n} pre-shared passphrases@footnote{The key derivation
+		function PBKDF2 is applied with an iteration count of 25.000 and a
+		different constant salt value to derive the authentication and the
+		encryption key, respectively.} is required, if
+		@var{aio_is_authenticated_in} or @var{aio_is_encrypted_in} is
+		@code{true}, which is the default behaviour for both. The
+		robustness of the I/O stream can be improved, if
+		@var{aio_is_chunked_in} is set to @code{true}.@footnote{Then the
+		symmetric cipher is operated in CTR mode and the corresponding
+		counter is shipped in each chunk of data (i.e. big integer of type
+		@code{mpz_t}) such that the receiver can decrypt messages out of order.
+		Thus some missing characters should not lead to a general decryption
+		failure of the point-to-point channel. However, this opens a quite
+		large surface for replay or insertion attacks, because the included
+		authentication is limited by design to single messages.}
+		The default values for timeout (in seconds) and the applied receive
+		scheduler can be modified carefully according to the desired use case.
 	@end defop
 
 	@deftypemethod aiounicast_select bool Send (@code{mpz_srcptr} m, @code{const size_t} i_in, @code{time_t} timeout @code{=aio_timeout_default})
@@ -2099,7 +2148,8 @@ must be included in addition to @code{libTMCG.hh}. The use of class
 	@end deftypemethod
 
 	@deftypemethod aiounicast_select bool Send (@code{const std::vector<mpz_srcptr>&} m, @code{const size_t} i_in, @code{time_t} timeout @code{=aio_timeout_default})
-		This method works as above, however, a vector @var{m} of integers is sent.
+		This method works as above, however, a vector @var{m} of integers
+		is sent.
 	@end deftypemethod
 
 	@deftypemethod aiounicast_select bool Receive (@code{mpz_ptr} m, @code{size_t&} i_out, @code{size_t} scheduler @code{=aio_scheduler_default}, @code{time_t} timeout @code{=aio_timeout_default})
@@ -2114,7 +2164,8 @@ must be included in addition to @code{libTMCG.hh}. The use of class
 	@end deftypemethod
 
 	@deftypemethod aiounicast_select bool Receive (@code{std::vector<mpz_ptr>&} m, @code{size_t&} i_out, @code{size_t} scheduler @code{=aio_scheduler_default}, @code{time_t} timeout @code{=aio_timeout_default})
-		This method works as above, however, a vector @var{m} of integers is received.
+		This method works as above, however, a vector @var{m} of integers
+		is received.
 	@end deftypemethod
 
 	@defop {Destructor} aiounicast_select ~aiounicast_select ()
@@ -2128,12 +2179,12 @@ must be included in addition to @code{libTMCG.hh}. The use of class
 LibTMCG consists of several C++ classes. Some of them are only extensions
 or optimizations, but other provide necessary interfaces to perform the basic
 operations in secure card games, e.g., the creation of open cards, the masking
-of cards, the opening of masked cards, the verifiable secret shuffle of a stack,
-and more general tasks like distributed key generation procedures. Each class
-implements the some functionality of the corresponding research
-paper@tie{}[CKPS01, BS03, JL00, Gr05, HSSV09, Sc98]. The author names are a prefix
-of the class name and the following part is an abbreviation of (a part of) the
-title, respectively.
+of cards, the opening of masked cards, the verifiable secret shuffle of a
+stack, and more general tasks like distributed key generation procedures. Each
+class implements the some functionality of the corresponding research
+paper@tie{}[CKPS01, BS03, JL00, Gr05, HSSV09, Sc98]. The author names are a
+prefix of the class name and the following part is an abbreviation of (a part
+of) the title, respectively.
 
 @menu
 * CachinKursawePetzoldShoupRBC::
@@ -2146,19 +2197,36 @@ title, respectively.
 
 @node CachinKursawePetzoldShoupRBC
 @subsubsection Secure and Efficient Asynchronous Broadcast Protocols
-This part of LibTMCG provides an implementation of @emph{reliable broadcast},
+This part of LibTMCG provides an implementation for @emph{reliable broadcast},
 which is actually based on an optimized variant of Bracha's double-echo
 broadcast protocol.
-It works without further authentication mechanisms (e.g. digital signatures) and thus
-guarantees the desired properties (i.e. validity, consistency, and
-totality@footnote{Totality ensures that all correct parties either deliver a message
-or don't. In the literature consistency and totality properties are often combined
-into a single condition called @emph{agreement}.}) of
-reliable broadcast only, if the number of faulty or even malicious players
-@math{t} is strictly less than one third of all parties @math{n}, i.e. @math{t < n/3}. 
+It works without sophisticated authentication mechanisms (e.g. digital
+signatures) and thus guarantees the desired properties (i.e. validity,
+consistency, and totality@footnote{Totality ensures that all correct parties
+either deliver a message or don't, provided that all associated messages of
+the broadcast protocol are delivered. In the literature consistency and
+totality properties are often combined into a single condition called
+@emph{agreement}.}) of reliable broadcast only, if the number of faulty or
+even malicious players @math{t} is strictly less than one third of all
+parties @math{n}, i.e. @math{t < n/3}. 
 Please note that without further assumptions this condition is rather optimal
-for asynchronous communication and thus has crucial impact for liveness of the
-high-level protocols using it.
+for an asynchronous communication model and thus has crucial impact for
+liveness and termination of the high-level protocols using it.
+
+The basic algorithm has been extended by a rather simple mechanism (i.e.
+maintaining sequence counters for each party) to broadcast and deliver more
+than one message in FIFO-order. Hence a so-called @emph{broadcast channel}
+can be established. Such a channel is determined by a given unique
+ID@footnote{In some papers (e.g. [CKPS01]) this ID is called @emph{tag}.}
+that can be switched during execution of the high-level protocol. Moreover,
+to some extent the applied FIFO-order can be skipped or completely disabled.
+
+Another extension is the included out-of-order handler (i.e. missing messages
+are retrieved from other parties) which is invoked, if violations of the
+FIFO-order are detected. Note that those retrieved messages are delivered,
+if and only if a @math{n - t} quorum is reached. The out-of-order handler
+is activated by default as long as the applied FIFO-order is not skipped or
+disabled.
 
 We describe only those classes, methods, and members that might be of interest
 for an application programmer.
@@ -2168,7 +2236,9 @@ for an application programmer.
 	This class implements the protocol RBC by Cachin, Kursawe, Petzold, and
 	Shoup@tie{}[CKPS01] for a reliable broadcast in the asynchronous
 	communication model, where @math{t < n/3} holds. Additionally, a
-	FIFO-ordered delivery mechanism based on sequence numbers has been implemented.
+	FIFO-order delivery mechanism based on sequence numbers has been
+	implemented according to Algorithm@tie{}3.12 and Algorithm@tie{}3.19
+	in the mentioned textbook@tie{}[CGR06].
 	
 	@deftypecv {Member} CachinKursawePetzoldShoupRBC {size_t} n
 		This is the total number of parties @math{n} involved in this protocol.
@@ -2182,10 +2252,19 @@ for an application programmer.
 		This is an uniqe index of the party running this instance.
 	@end deftypecv
 
+	@deftypecv {Member} CachinKursawePetzoldShoupRBC {std::map<std::string, std::string>} ID_log
+		This map records the channel operations done. It can be used to
+		trace the relationship between created broadcast channels. The first
+		component (i.e. the key) represents the hash value (ID) that is used
+		internally to distinguish those channels. The second componnent
+		(i.e. a value for some key) contains the input for computing the
+		above hash value (after the last @code{->}) and the applied operations
+		to this ID.
+	@end deftypecv
 
-	@defop {Constructor} CachinKursawePetzoldShoupRBC CachinKursawePetzoldShoupRBC (@code{const size_t} n_in, @code{const size_t} t_in, @code{const size_t} j_in, @code{aiounicast*} aiou_in, @code{const size_t} aio_default_scheduler_in @code{=aiounicast::aio_scheduler_roundrobin}, @code{const time_t} aio_default_timeout_in @code{=aiounicast::aio_timeout_very_long})
+	@defop {Constructor} CachinKursawePetzoldShoupRBC CachinKursawePetzoldShoupRBC (@code{const size_t} n_in, @code{const size_t} t_in, @code{const size_t} j_in, @code{aiounicast*} aiou_in, @code{const size_t} aio_default_scheduler_in @code{=aiounicast::aio_scheduler_roundrobin}, @code{const time_t} aio_default_timeout_in @code{=aiounicast::aio_timeout_very_long}, @code{const size_t} fifo_skip_in @code{=0})
 		The constructor initializes an instance for a reliable
-		broadcast channel of @math{n} parties. This total number
+		broadcast channel of @math{n} parties. The total number
 		of parties is given in the first argument @var{n_in}. The 
 		number of possible faulty or even malicious parties @math{t}
 		(given in the second argument @var{t_in}) must not exceed
@@ -2194,38 +2273,58 @@ for an application programmer.
 		it is recommended to set @var{t_in} to the asynchronous maximum
 		@math{(n-1)/3}. The third argument @var{j_in} is an index of
 		the party running this instance. Finally, the constructor needs
-		as fourth argument @var{aiou_in} a reference to already established
-		point-to-point channels (@pxref{Communication Interfaces}), which
-		should exclusively@footnote{These channels should be authenticated
-		such that network attacks or errors can be detetcted.} used
-		for this broadcast channels. The default values	for timeout
-		(in seconds) and the deliver scheduler can be modified
-		carefully with respect to the usage scenario.
+		as fourth argument @var{aiou_in} a reference to already
+		established point-to-point channels (@pxref{Communication Interfaces}),
+		which should exclusively@footnote{These channels
+		should be authenticated such that network attacks or errors can
+		be detetcted.} used for this broadcast primitive. The default
+		values for timeout (in seconds) and the deliver scheduler can
+		be modified carefully with respect to the usage scenario.
+		Last but not least, a detected difference of any sequence
+		counter (FIFO-order) is skipped, if @var{fifo_skip_in} is
+		greater than zero.
 	@end defop
 
-	@deftypemethod CachinKursawePetzoldShoupRBC void setID (@code{const std::string&} ID_in)
-		Broadcast channels are parameterized by a @emph{tag} called ID, that uniquely identifies each channel.
-		This method sets the tag to @var{ID_in}, which should be equal for all parties on the same channel.
+	@deftypemethod CachinKursawePetzoldShoupRBC void setID (@code{const std::string&} ID_in, @code{const bool} fifo_in @code{=true})
+		Broadcast channels are parameterized by an ID, that uniquely identifies
+		each channel. This method creates such a channel by computing a uniform
+		ID from the string @var{ID_in}. Thus this string should be equal for
+		all parties on the same channel. Moreover, the corresponding sequence
+		counters are initialized by @code{1}. If the optional variable
+		@var{fifo_in} is set to @code{false}, then the FIFO-order extension is
+		disabled completely for this moment. In that case the sequence number
+		of a message is choosen randomly as a 256-bit value.
 	@end deftypemethod
 
-	@deftypemethod CachinKursawePetzoldShoupRBC void unsetID ()
-		This method unset the current channel tag and returns to the previous value. This is commonly used to
-		return from a channel of a subprotcol to the channel of the calling protocol.
+	@deftypemethod CachinKursawePetzoldShoupRBC void recoverID (@code{const std::string&} ID_in, @code{const bool} fifo_in @code{=true})
+		This method switchs to an already existing channel characterized by
+		the string @var{ID_in}. It restores the corresponding sequence counters.
+		If the optional variable @var{fifo_in} is set to @code{false}, then the
+		FIFO-order extension is disabled completely for this moment.
+	@end deftypemethod
+
+	@deftypemethod CachinKursawePetzoldShoupRBC void unsetID (@code{const bool} fifo_in @code{=true})
+		This method resets the currently used ID and sequence counters, i.e.,
+		it restores the previous values that have been saved by @code{setID} or
+		even @code{recoverID}. This is commonly used to return from a channel
+		of a subprotcol to the channel of the calling high-level protocol.
+		If the optional variable @var{fifo_in} is set to @code{false}, then the
+		FIFO-order extension is disabled completely for this moment.
 	@end deftypemethod
 
 	@deftypemethod CachinKursawePetzoldShoupRBC void Broadcast (@code{mpz_srcptr} m, @code{const bool} simulate_faulty_behaviour @code{=false})
-		This method broadcasts the integer @var{m} to all parties. 
+		This method broadcasts the integer @var{m} to all parties.
 	@end deftypemethod
 
 	@deftypemethod CachinKursawePetzoldShoupRBC bool Deliver (@code{mpz_ptr} m, @code{size_t&} i_out, @code{size_t} scheduler @code{=aiounicast::aio_scheduler_default}, 	@code{time_t} timeout @code{=aiounicast::aio_timeout_default})
-		This method delivers a broadcasted integer @var{m} from any
-		party using deliver scheduler @var{scheduler}. The index of
-		the sender is returned in @var{i_out}. In presence of the
+		This method delivers a previously broadcasted integer @var{m} on the
+		current channel from any party using the scheduler @var{scheduler}. The
+		index of the sender is returned in @var{i_out}. In presence of the
 		fourth argument it waits for at most @var{timeout} seconds.
 		Otherwise, the default timeout given to the constructor is applied.
 
-		The method returns @code{false}, if delivering fails. Only
-		in some critical cases error messages are written to @code{std::cerr}.
+		The method returns @code{false}, if the delivery has been failed. Only
+		for critical cases some error messages are written to @code{std::cerr}.
 	@end deftypemethod
 
 	@deftypemethod CachinKursawePetzoldShoupRBC bool DeliverFrom (@code{mpz_ptr} m, @code{const size_t} i_in, @code{size_t} scheduler @code{=aiounicast::aio_scheduler_default}, @code{time_t} timeout @code{=aiounicast::aio_timeout_default})
@@ -2235,8 +2334,8 @@ for an application programmer.
 		at most for @var{timeout} seconds.
 		Otherwise, the default timeout given to the constructor is applied.
 
-		The method returns @code{false}, if delivering fails. Only
-		in some critical cases error messages are written to @code{std::cerr}.
+		The method returns @code{false}, if the delivery has been failed. Only
+		for critical cases some error messages are written to @code{std::cerr}.
 	@end deftypemethod
 
 	@deftypemethod CachinKursawePetzoldShoupRBC bool Sync (@code{time_t} timeout @code{=aiounicast::aio_timeout_default}, @code{const std::string} tag @code{=""})
@@ -2250,7 +2349,7 @@ for an application programmer.
 		a description of the synchronization point can be supplied as second
 		argument of this method.
 
-		The method returns @code{false}, if synchronization is failed. 
+		The method returns @code{false}, if synchronization has been failed. 
 	@end deftypemethod
 	
 	@defop {Destructor} CachinKursawePetzoldShoupRBC ~CachinKursawePetzoldShoupRBC ()
@@ -2284,15 +2383,15 @@ description of such internal functions and members.
 @deftp {Class} BarnettSmartVTMF_dlog
 	This class implements the discrete logarithm instantiation of the VTMF
 	primitive in the field @math{{\bf Z}/p{\bf Z}}, where @math{p} is a large
-	prime number. The mathematical computations are performed in the finite cyclic
-	subgroup @math{G} of prime order @math{q} such that @math{p = kq + 1} holds
-	for some @math{k\in {\bf Z}}. The security relies on the DDH assumption in
-	@math{G}, i.e., the distribution @math{\{g^a, g^b, g^{ab}\}} is computationally
-	indistinguishable from @math{\{g^a, g^b, g^c\}}, where @math{g} is a
-	generator of @math{G} and @math{a, b, c} are chosen at random from
-	@math{{\bf Z}_q}. Currently, this well-established assumption is believed to
-	hold, if @math{p} and @math{q} are chosen according to the predefined security
-	parameters of LibTMCG.
+	prime number. The mathematical computations are performed in the finite
+	cyclic subgroup @math{G} of prime order @math{q} such that @math{p = kq + 1}
+	holds for some @math{k\in {\bf Z}}. The security relies on the DDH
+	assumption in @math{G}, i.e., the distribution @math{\{g^a, g^b, g^{ab}\}}
+	is computationally indistinguishable from @math{\{g^a, g^b, g^c\}}, where
+	@math{g} is a generator of @math{G} and @math{a, b, c} are chosen at random
+	from @math{{\bf Z}_q}. Currently, this well-established assumption is
+	believed to hold, if @math{p} and @math{q} are chosen according to the
+	predefined security parameters of LibTMCG.
 	
 	@deftypecv {Member} BarnettSmartVTMF_dlog {mpz_t} p
 		This is the public prime number @math{p} which defines the
@@ -2315,9 +2414,9 @@ description of such internal functions and members.
 	@end deftypecv
 	
 	@deftypecv {Member} BarnettSmartVTMF_dlog {mpz_t} h
-		This is the common public key @math{h = \prod_{i=1}^k h_i} which contains
-		the public keys @math{h_i} of each player @math{P_i}. Note that in the
-		above formula @math{k} denotes the number of players.
+		This is the common public key @math{h = \prod_{i=1}^k h_i} which
+		contains the public keys @math{h_i} of each player @math{P_i}. Note
+		that in the above formula @math{k} denotes the number of players.
 	@end deftypecv
 
 	@deftypecv {Member} BarnettSmartVTMF_dlog {mpz_t} h_i
@@ -2327,40 +2426,43 @@ description of such internal functions and members.
 	@deftypeop {Constructor} BarnettSmartVTMF_dlog {} BarnettSmartVTMF_dlog (@code{const unsigned long int} fieldsize @code{=TMCG_DDH_SIZE}, @code{const unsigned long int} subgroupsize @code{=TMCG_DLSE_SIZE}, @code{const bool} canonical_g_usage @code{=false}, @code{const bool} initialize_group @code{=true})
 		This constructor creates a new VTMF instance. That means, the primes
 		@math{p} and @math{q} are randomly and uniformly chosen such that
-		they have length @var{fieldsize} bit and @var{subgroupsize} bit, respectively.
-		Further, either a generator @math{g} for the unique subgroup of order @math{q} is
-		chosen at random or, if @var{canonical_g_usage} is set @code{true}, the
-		generator @math{g} is chosen in a verifiable way (cf. FIPS 186-3 A.2.3).
-		If the arguments are omitted, then @var{fieldsize}, @var{subgroupsize} and
-		@var{canonical_g_usage} are set to their default values @code{TMCG_DDH_SIZE},
-		@code{TMCG_DLSE_SIZE}, and @code{false}, respectively.
-		The argument @var{initialize_group} should be always set @code{true}.
-		Depending on @var{fieldsize} and @var{subgroupsize} the group generation
-		is a very time-consuming task that should be taken into account by the
-		application designer.
+		they have length @var{fieldsize} bit and @var{subgroupsize} bit,
+		respectively. Further, either a generator @math{g} for the unique
+		subgroup of order @math{q} is chosen at random or, if
+		@var{canonical_g_usage} is set @code{true}, the generator @math{g} is
+		chosen in a verifiable way (cf. FIPS 186-3 A.2.3).
+		If the arguments are omitted, then @var{fieldsize}, @var{subgroupsize}
+		and @var{canonical_g_usage} are set to their default values
+		@code{TMCG_DDH_SIZE}, @code{TMCG_DLSE_SIZE}, and @code{false},
+		respectively. The argument @var{initialize_group} should be always set
+		@code{true}. Depending on @var{fieldsize} and @var{subgroupsize} the
+		group generation is a very time-consuming task that should be taken
+		into account by the application designer.
 	@end deftypeop
 	
 	@deftypeop {Constructor} BarnettSmartVTMF_dlog {} BarnettSmartVTMF_dlog (@code{std::istream&} in, @code{const unsigned long int} fieldsize @code{=TMCG_DDH_SIZE}, @code{const unsigned long int} subgroupsize @code{=TMCG_DLSE_SIZE}, @code{bool} canonical_g_usage @code{=false}, @code{const bool} precompute @code{=true})
-		This constructor initializes the VTMF instance from a correctly formatted
-		input stream @var{in}. For example, such a stream can be generated by calling
-		the method @code{PublishGroup} of an already created instance. The arguments
-		@var{fieldsize}, @var{subgroupsize}, and @var{canonical_g_usage} are stored
-		for later following usage, e.g. by the method @code{CheckGroup} as explained
-		below. The argument @var{precompute} should be always set @code{true}.
-		If these arguments are omitted, then they are set to the default values
-		@code{TMCG_DDH_SIZE}, @code{TMCG_DLSE_SIZE}, @code{false}, and @code{true} respectively.
+		This constructor initializes the VTMF instance from a correctly
+		formatted input stream @var{in}. For example, such a stream can be
+		generated by calling the method @code{PublishGroup} of an already
+		created instance. The arguments @var{fieldsize}, @var{subgroupsize},
+		and @var{canonical_g_usage} are stored for later following usage, e.g.
+		by the method @code{CheckGroup} as explained below. The argument
+		@var{precompute} should be always set @code{true}. If these arguments
+		are omitted, then they are set to the default values
+		@code{TMCG_DDH_SIZE}, @code{TMCG_DLSE_SIZE}, @code{false}, and
+		@code{true} respectively.
 	@end deftypeop
 	
 	@deftypemethod BarnettSmartVTMF_dlog bool CheckGroup ()
 		This method checks whether @math{p} and @math{q} have appropriate sizes
 		with respect to the bit lengths given during the initialization of the
-		corresponding instance. Further, it checks whether @math{p} has the correct
-		form (i.e. @math{p = kq +1}), whether @math{p} and @math{q} are probable
-		prime, and whether @math{g} is a generator of the subgroup @math{G}. If
-		@var{canonical_g_usage} is set @code{true} during the call of constructor,
-		then it additionally checks whether @math{g} was generated in a verifiable
-		way (cf. FIPS 186-3 A.2.3). It returns @code{true}, if all of these checks
-		have been passed successfully.
+		corresponding instance. Further, it checks whether @math{p} has the
+		correct form (i.e. @math{p = kq +1}), whether @math{p} and @math{q} are
+		probable prime, and whether @math{g} is a generator of the subgroup
+		@math{G}. If @var{canonical_g_usage} is set @code{true} during the call
+		of constructor, then it additionally checks whether @math{g} was
+		generated in a verifiable way (cf. FIPS 186-3 A.2.3). It returns
+		@code{true}, if all of these checks have been passed successfully.
 	@end deftypemethod
 	
 	@deftypemethod BarnettSmartVTMF_dlog void PublishGroup (@code{std::ostream&} out)
@@ -2372,32 +2474,34 @@ description of such internal functions and members.
 
 @cindex VTMF keys	
 	@deftypemethod BarnettSmartVTMF_dlog void KeyGenerationProtocol_GenerateKey ()
-		This method generates a VTMF key pair and stores the numbers internally for
-		a later following usage. It must be called before any other part
-		of the key generation protocol is executed. Otherwise, the produced results
-		are wrong.
+		This method generates a VTMF key pair and stores the numbers internally
+		for a later following usage. It must be called before any other part
+		of the key generation protocol is executed. Otherwise, the produced
+		results are wrong.
 	@end deftypemethod
 	
 	@deftypemethod BarnettSmartVTMF_dlog void KeyGenerationProtocol_PublishKey (@code{std::ostream&} out)
-		This method exports the public part @math{h_i} of the generated VTMF key pair
-		to the given output stream @var{out}. Further, it appends a non-interactive
-		zero-knowledge proof of knowledge (NIZK) which shows that the instance knows
-		the secret part @math{x_i} such that @math{h_i \equiv g^{x_i} \pmod{p}} holds.
-		Due to the non-interactive nature of this proof the method has to be called
-		only once while the computed output can be reused multiple times if necessary.
+		This method exports the public part @math{h_i} of the generated VTMF
+		key pair to the given output stream @var{out}. Further, it appends a
+		non-interactive zero-knowledge proof of knowledge (NIZK) which shows
+		that the instance knows the secret part @math{x_i} such that
+		@math{h_i \equiv g^{x_i} \pmod{p}} holds.
+		Due to the non-interactive nature of this proof the method has to be
+		called only once while the computed output can be reused multiple times
+		if necessary.
 	@end deftypemethod
 	
 	@deftypemethod BarnettSmartVTMF_dlog bool KeyGenerationProtocol_UpdateKey (@code{std::istream&} in)
-		This method reads the public part of a VTMF key and the NIZK from the input
-		stream @var{in}. It appends the key to the common public key and returns
-		@code{true}, if the given proof was sound. Otherwise, @code{false}
-		is returned.
+		This method reads the public part of a VTMF key and the NIZK from the
+		input stream @var{in}. It appends the key to the common public key and
+		returns @code{true}, if the given proof was sound. Otherwise,
+		@code{false} is returned.
 	@end deftypemethod
 	
 	@deftypemethod BarnettSmartVTMF_dlog bool KeyGenerationProtocol_RemoveKey (@code{std::istream&} in)
-		This method reads the public part of a VTMF key and the corresponding NIZK
-		from the input stream @var{in}. It removes the key from the common public
-		key and returns @code{true}, if the key was previously appended
+		This method reads the public part of a VTMF key and the corresponding
+		NIZK from the input stream @var{in}. It removes the key from the common
+		public key and returns @code{true}, if the key was previously appended
 		by @code{KeyGenerationProtocol_UpdateKey} as explained above.
 	@end deftypemethod
 	
@@ -2416,15 +2520,15 @@ description of such internal functions and members.
 @deftp {Subclass of @code{BarnettSmartVTMF_dlog}} BarnettSmartVTMF_dlog_GroupQR
 	This subclass implements the discrete logarithm instantiation of the VTMF
 	primitive in the field @math{{\bf Z}/p{\bf Z}}, where @math{p} is a large
-	prime number. The mathematical computations are performed in a special finite
-	cyclic subgroup @math{G} (quadratic residues modulo @math{p}) of prime order
-	@math{q}, where @math{p = 2q + 1} holds. The security also relies on the DDH
-	assumption w.r.t. @math{G}, i.e., the distribution @math{\{g^a, g^b, g^{ab}\}}
-	is computationally indistinguishable from @math{\{g^a, g^b, g^c\}}, where
-	@math{g} is a generator of @math{G} and @math{a, b, c} are chosen at random
-	from @math{{\bf Z}_q}. Currently, this well-established assumption is believed
-	to hold, if @math{p} and @math{q} are chosen according to the predefined
-	security parameters of LibTMCG.
+	prime number. The mathematical computations are performed in a special
+	finite cyclic subgroup @math{G} (quadratic residues modulo @math{p}) of
+	prime order @math{q}, where @math{p = 2q + 1} holds. The security also
+	relies on the DDH assumption w.r.t. @math{G}, i.e., the distribution
+	@math{\{g^a, g^b, g^{ab}\}} is computationally indistinguishable from
+	@math{\{g^a, g^b, g^c\}}, where @math{g} is a generator of @math{G} and
+	@math{a, b, c} are chosen at random from @math{{\bf Z}_q}. Currently, this
+	well-established assumption is believed to hold, if @math{p} and @math{q}
+	are chosen according to the predefined security parameters of LibTMCG.
 	
 	@deftypecv {Member} BarnettSmartVTMF_dlog {mpz_t} p
 		This is the public prime number @math{p} which defines the
@@ -2448,9 +2552,9 @@ description of such internal functions and members.
 	@end deftypecv
 	
 	@deftypecv {Member} BarnettSmartVTMF_dlog {mpz_t} h
-		This is the common public key @math{h = \prod_{i=1}^k h_i} which contains
-		the public keys @math{h_i} of each player @math{P_i}. Note that in the
-		above formula @math{k} denotes the number of players.
+		This is the common public key @math{h = \prod_{i=1}^k h_i} which
+		contains the public keys @math{h_i} of each player @math{P_i}. Note
+		that in the above formula @math{k} denotes the number of players.
 	@end deftypecv
 
 	@deftypecv {Member} BarnettSmartVTMF_dlog {mpz_t} h_i
@@ -2458,27 +2562,28 @@ description of such internal functions and members.
 	@end deftypecv
 	
 	@deftypeop {Constructor} BarnettSmartVTMF_dlog_GroupQR {} BarnettSmartVTMF_dlog_GroupQR (@code{const unsigned long int} fieldsize @code{=TMCG_DDH_SIZE}, @code{const unsigned long int} exponentsize @code{=TMCG_DLSE_SIZE})
-		This constructor creates a new VTMF instance. That means, the safe prime
-		@math{p} is randomly and uniformly chosen such that it has a length of
-		@var{fieldsize} bit.
+		This constructor creates a new VTMF instance. That means, the safe
+		prime @math{p} is randomly and uniformly chosen such that it has a
+		length of @var{fieldsize} bit.
 		Further, the generator @math{g} is initially set up by @math{2} and then
 		shifted by @math{@var{fieldsize} - @var{exponentsize}} bit positions,
 		according to the procedure described by Koshiba and Kurosawa (see
-		@emph{Short Exponent Diffie-Hellman Problems}, PKC@tie{}2004, LNCS@tie{}2947).
-		If the arguments of the constructor are omitted, then @var{fieldsize} and
-		@var{exponentsize} are set to their default values @code{TMCG_DDH_SIZE} and
-		@code{TMCG_DLSE_SIZE}, respectively.
+		@emph{Short Exponent Diffie-Hellman Problems}, PKC@tie{}2004,
+		LNCS@tie{}2947). If the arguments of the constructor are omitted, then
+		@var{fieldsize} and @var{exponentsize} are set to their default values
+		@code{TMCG_DDH_SIZE} and @code{TMCG_DLSE_SIZE}, respectively.
 		Depending on @var{fieldsize} and @var{exponentsize} the group generation
 		is a very time-consuming task that should be taken into account by the
 		application designer.
 	@end deftypeop
 	
 	@deftypeop {Constructor} BarnettSmartVTMF_dlog_GroupQR {} BarnettSmartVTMF_dlog_GroupQR (@code{std::istream&} in, @code{const unsigned long int} fieldsize @code{=TMCG_DDH_SIZE}, @code{const unsigned long int} exponentsize @code{=TMCG_DLSE_SIZE})
-		This constructor initializes the VTMF instance from a correctly formatted
-		input stream @var{in}. For example, such a stream can be generated by calling
-		the method @code{PublishGroup} of an already created instance. The arguments
-		@var{fieldsize} and @var{exponentsize} are stored for later following usage,
-		e.g. by the method @code{CheckGroup} as explained below.
+		This constructor initializes the VTMF instance from a correctly
+		formatted input stream @var{in}. For example, such a stream can be
+		generated by calling the method @code{PublishGroup} of an already
+		created instance. The arguments @var{fieldsize} and @var{exponentsize}
+		are stored for later following usage, e.g. by the method
+		@code{CheckGroup} as explained below.
 		If these arguments are omitted, then they are set to the default values
 		@code{TMCG_DDH_SIZE} and @code{TMCG_DLSE_SIZE}, respectively.
 	@end deftypeop
@@ -2486,10 +2591,11 @@ description of such internal functions and members.
 	@deftypemethod BarnettSmartVTMF_dlog_GroupQR bool CheckGroup ()
 		This method checks whether @math{p} and @math{q} have appropriate sizes
 		with respect to the bit lengths given during the initialization of the
-		corresponding instance. Further, it checks whether @math{p} has the correct
-		form (i.e. @math{p = 2q +1}), whether @math{p} and @math{q} are probable
-		prime, and whether @math{g} is a generator of the subgroup @math{G}. It
-		returns @code{true}, if all of these checks have been passed successfully.
+		corresponding instance. Further, it checks whether @math{p} has the
+		correct form (i.e. @math{p = 2q +1}), whether @math{p} and @math{q} are
+		probable prime, and whether @math{g} is a generator of the subgroup
+		@math{G}. It returns @code{true}, if all of these checks have been
+		passed successfully.
 	@end deftypemethod
 	
 	@defop {Destructor} BarnettSmartVTMF_dlog_GroupQR ~BarnettSmartVTMF_dlog_GroupQR ()
@@ -2499,8 +2605,9 @@ description of such internal functions and members.
 
 @node JareckiLysyanskayaEDCF
 @subsubsection Adaptively Secure Threshold Cryptography
-Jarecki and Lysyanskaya@tie{}[JL00] have introduced some useful building blocks in order
-to gain security against an adaptive adversary for threshold cryptography.
+Jarecki and Lysyanskaya@tie{}[JL00] have introduced some useful building blocks
+in order to gain security against an adaptive adversary for threshold
+cryptography.
 
 @cindex EDCF
 @deftp {Class} JareckiLysyanskayaEDCF
@@ -2508,17 +2615,19 @@ to gain security against an adaptive adversary for threshold cryptography.
 	It also needs a group @math{G_q} of prime order @math{q} where the discrete
 	logarithm problem is computationally hard. The protocol produces a public
 	value @math{a = \sum_{i=1}^n a_i \bmod q} such that @math{0 \le a < q} is
-	random and uniformly distributed, if at least one party @math{P_i, 1 \le i \le n}
-	has chosen their corresponding coin share @math{a_i\in{\bf Z}_q} uniformly at random.
+	random and uniformly distributed, if at least one party
+	@math{P_i, 1 \le i \le n} has chosen their corresponding coin share
+	@math{a_i\in{\bf Z}_q} uniformly at random.
 
-	The coinflip protocol is useful in order to transform a public-coin honest-verifier
-	zero-knowledge proof of knowledge (HVZKP) into interactive proof resp. argument
-	which preserve the zero-knowledge property even in case of malicious verifiers.
-	Such proof systems are called @emph{simultaneous} zero-knowledge proofs of
-	knowledge. The underlying general model of Jarecki and Lysyanskaya@tie{}[JL00]
-	considers a synchronous communication network of @math{n} players with access to
-	a reliable broadcast channel, where an adaptive adversary can corrupt up to a
-	minority @math{t < n/2} of the players.
+	The coinflip protocol is useful in order to transform a public-coin
+	honest-verifier zero-knowledge proof of knowledge (HVZKP) into interactive
+	proof resp. argument which preserve the zero-knowledge property even in
+	case of malicious verifiers. Such proof systems are called
+	@emph{simultaneous} zero-knowledge proofs of knowledge. The underlying
+	general model of Jarecki and Lysyanskaya@tie{}[JL00] considers a
+	synchronous communication network of @math{n} players with access to
+	a reliable broadcast channel, where an adaptive adversary can corrupt up
+	to a minority @math{t < n/2} of the players.
 
 	@deftypecv {Member} JareckiLysyanskayaEDCF {mpz_t} p
 		This is the public prime number @math{p} which defines the
@@ -2543,12 +2652,13 @@ to gain security against an adaptive adversary for threshold cryptography.
 		protocol (@pxref{BarnettSmartVTMF}).
 
 		@quotation Jarecki and Lysyanskaya@tie{}[JL00]
-			``When secure channels are present, @math{h} can be obtained by using general
-			techniques of multi-party computation@tie{}[BGW88, CDD+99]. When secure channel
-			are not there, and implementing them by erasure is not an option, we can use
-			another protocol, where each player generates his share @math{h_i} of @math{h},
-			and then all players, in parallel, prove knowledge of @math{\log_g h_i} to each
-			other.''
+			``When secure channels are present, @math{h} can be obtained by
+			using general techniques of multi-party
+			computation@tie{}[BGW88, CDD+99]. When secure channel are not
+			there, and implementing them by erasure is not an option, we can
+			use another protocol, where each player generates his share
+			@math{h_i} of @math{h}, and then all players, in parallel, prove
+			knowledge of @math{\log_g h_i} to each other.''
 		@end quotation
 	@end deftypecv
 
@@ -2557,32 +2667,33 @@ to gain security against an adaptive adversary for threshold cryptography.
 	@end deftypecv
 
 	@deftypecv {Member} JareckiLysyanskayaEDCF {size_t} t
-		This is the maximum number of faulty parties @math{t} (reconstruction threshold).
+		This is the maximum number of faulty parties @math{t} (reconstruction
+		threshold).
 	@end deftypecv
 
 	@deftypeop {Constructor} JareckiLysyanskayaEDCF {} JareckiLysyanskayaEDCF (@code{const size_t} n_in, @code{const size_t} t_in, @code{mpz_srcptr} p_CRS, @code{mpz_srcptr} q_CRS, @code{mpz_srcptr} g_CRS, @code{mpz_srcptr} h_CRS, @code{const unsigned long int} fieldsize @code{=TMCG_DDH_SIZE}, @code{const unsigned long int} subgroupsize @code{=TMCG_DLSE_SIZE})
-		This constructor creates a new EDCF instance. That means, the required primes
-		@math{p} and @math{q} and the generators @math{g} and @math{h} are
-		initialized from the given arguments @var{p_CRS}, @var{q_CRS}, @var{g_CRS},
-		and @var{h_CRS}, respectively. @var{n_in} is the total number of participating
-		players, for which at most @var{t_in} are faulty or act malicious during the
-		protocol execution.
+		This constructor creates a new EDCF instance. That means, the required
+		primes @math{p} and @math{q} and the generators @math{g} and @math{h}
+		are initialized from the given arguments @var{p_CRS}, @var{q_CRS},
+		@var{g_CRS}, and @var{h_CRS}, respectively. @var{n_in} is the total
+		number of participating players, for which at most @var{t_in} are
+		faulty or act malicious during the protocol execution.
 	@end deftypeop
 
 	@deftypemethod JareckiLysyanskayaEDCF bool CheckGroup ()
 		This method checks whether @math{p} and @math{q} have appropriate sizes
 		with respect to the bit lengths given during the initialization of the
-		corresponding instance. Further, it checks whether @math{p} has the correct
-		form (i.e. @math{p = kq +1}), whether @math{p} and @math{q} are probable
-		prime, and whether @math{g} resp. @math{h} are different generators of the
-		subgroup @math{G_q}. It returns @code{true}, if all of these checks
-		have been passed successfully.
+		corresponding instance. Further, it checks whether @math{p} has the
+		correct form (i.e. @math{p = kq +1}), whether @math{p} and @math{q} are
+		probable prime, and whether @math{g} resp. @math{h} are different
+		generators of the subgroup @math{G_q}. It returns @code{true}, if all
+		of these checks have been passed successfully.
 	@end deftypemethod
 
 	@deftypemethod JareckiLysyanskayaEDCF bool Flip (@code{const size_t} i, @code{mpz_ptr} a, @code{aiounicast*} aiou, @code{CachinKursawePetzoldShoupRBC*} rbc, @code{std::ostream&} err, @code{const bool} simulate_faulty_behaviour @code{=false})
 		This method starts the protocol which produces a public
-		value @math{a = \sum_{i=1}^n a_i \bmod q} such that @math{0 \le a < q} is
-		random and uniformly distributed, if at least one party
+		value @math{a = \sum_{i=1}^n a_i \bmod q} such that @math{0 \le a < q}
+		is random and uniformly distributed, if at least one party
 		@math{P_i, 1 \le i \le n} has chosen their corresponding share
 		@math{a_i\in{\bf Z}_q} uniformly at random. If it returns
 		@code{true}, then @var{a} contains this common random value.
@@ -2637,11 +2748,11 @@ flipping protocol by Jarecki and Lysyanskaya@tie{}[JL00] to protect against
 malicious verifiers attacking the zero-knowledge property. Since version 1.3.0
 there is an additional method for generating the bases @math{g_1, \ldots, g_n}
 of the Pedersen commitment scheme by distributed coin flipping and a verifiable
-generation procedure similar to FIPS 186-3 A.2.3. This step is important in order
-to ensure, that a malicious prover cannot compute @math{\log_{g_i} h} resp.
-@math{\log_h g_i}, for some @math{i = 1, \ldots, n}, and thus erroneously pass
-the shuffle verification. It improves our former security model which considered
-only a passive adversary.
+generation procedure similar to FIPS 186-3 A.2.3. This step is important in
+order to ensure, that a malicious prover cannot compute @math{\log_{g_i} h}
+resp. @math{\log_h g_i}, for some @math{i = 1, \ldots, n}, and thus erroneously
+pass the shuffle verification. It improves our former security model which
+considered only a passive adversary.
 
 Further, to the best of our knowledge it is not known, whether Groth's protocol
 retains the zero-knowledge property when it is executed in a concurrent setting.
@@ -2716,8 +2827,8 @@ of the same instance.
 	@deftypemethod GrothVSSHE void SetupGenerators_publiccoin (@code{mpz_srcptr} a)
 		This is a simple method to setup the generators @math{g_1, \ldots, g_n}
 		of the internal Pedersen commitment scheme by using a common random
-		value @var{a} for a verifiable generation procedure similar to FIPS 186-3
-		A.2.3. Note that the same @var{a} must be used by all participants
+		value @var{a} for a verifiable generation procedure similar to FIPS
+		186-3 A.2.3. Note that the same @var{a} must be used by all participants
 		and that this value should be different for each game session.
 	@end deftypemethod
 
@@ -2725,14 +2836,15 @@ of the same instance.
 		This method setup the generators @math{g_1, \ldots, g_n} of the internal
 		Pedersen commitment scheme by using a distributed coinflip protocol@tie{}[JL00]
 		and a verifiable generation procedure similar to FIPS 186-3 A.2.3.
-		Assuming at least one honest player these values are randomly and uniformly
-		chosen from @math{{\bf Z}_q} such that @math{\log_{g_i} h} and @math{\log_h g_i}
-		are unkown, for all @math{i = 1, \ldots, n}.
+		Assuming at least one honest player these values are randomly and
+		uniformly chosen from @math{{\bf Z}_q} such that @math{\log_{g_i} h}
+		and @math{\log_h g_i} are unkown, for all @math{i = 1, \ldots, n}.
 		The argument @var{whoami} is an index of the running instance with
 		respect to already initialized instances of asynchronous point-to-point
 		channels @var{aiou} and a reliable broadcast channel @var{rbc}. Logging
 		and debug messages are printed to the provided output stream @var{err}.
-		The method returns @code{true}, if all generators have been setup successfully.
+		The method returns @code{true}, if all generators have been setup
+		successfully.
 	@end deftypemethod
 	
 	@deftypemethod GrothVSSHE bool CheckGroup ()
@@ -2763,8 +2875,8 @@ of Barnett and Smart@tie{}[BS03].
 
 Further, to the best of our knowledge it is not known, whether their protocol
 retains the zero-knowledge property when it is executed in a concurrent setting.
-Thus the application programmer should be careful and avoid parallel invocations
-of the same instance.
+Thus the application programmer should be careful and avoid parallel
+invocations of the same instance.
 
 @cindex VRHE
 @deftp {Class} HooghSchoenmakersSkoricVillegasVRHE
@@ -2787,13 +2899,15 @@ of the same instance.
 		The @var{fieldsize} and the @var{subgroupsize} are supplied to internal
 		classes and are only of interest, if @var{p_ENC} or @var{q_ENC} have
 		lengths different from the default. If these arguments are omitted,
-		they are set to @code{TMCG_DDH_SIZE} and @code{TMCG_DLSE_SIZE}, respectively.
+		they are set to @code{TMCG_DDH_SIZE} and @code{TMCG_DLSE_SIZE},
+		respectively.
 		
 		This constructor should be instantiated only once by the session
 		leader. All other instances must be created by the second constructor.
 		Further, it is very important that the VTMF key generation protocol
 		has been finished before the value of @math{h} is passed to the
-		constructor. Otherwise, the correctness verification will definitely fail.
+		constructor. Otherwise, the correctness verification will definitely
+		fail.
 	@end deftypeop
 	
 	@deftypeop {Constructor} HooghSchoenmakersSkoricVillegasVRHE {} HooghSchoenmakersSkoricVillegasVRHE (@code{std::istream&} in, @code{unsigned long int} fieldsize @code{=TMCG_DDH_SIZE}, @code{unsigned long int} subgroupsize @code{=TMCG_DLSE_SIZE})
@@ -2824,7 +2938,7 @@ of the same instance.
 This section explains the main class of LibTMCG which provides some
 ``high-level operations'' from Schindelhauer's toolbox@tie{}[Sc98].
 Even if the more efficient card encoding scheme of Barnett and
-Smart@tie{}[BS03] will deployed in your application, at least one
+Smart@tie{}[BS03] is deployed in your application, at least one
 instance of the following class must be created to perform any card
 or stack operations.
 
@@ -2846,7 +2960,8 @@ or stack operations.
 		proofs in the encoding scheme of Schindelhauer.	Further it defines the
 		soundness error probability (also @math{2^{-\kappa}}) of the shuffle
 		argument in the encoding scheme of Barnett and Smart, if the efficient
-		protocols of Groth@tie{}[Gr05, Gr10] and others@tie{}[HSSV09] are not used.
+		protocols of Groth@tie{}[Gr05, Gr10] and others@tie{}[HSSV09] are not
+		used.
 	@end deftypecv
 	
 	@deftypecv {Member} SchindelhauerTMCG {size_t} TMCG_Players
@@ -2861,33 +2976,37 @@ or stack operations.
 	@end deftypecv
 	
 	@deftypeop {Constructor} SchindelhauerTMCG {} SchindelhauerTMCG (@code{const unsigned long int} security, @code{const size_t} k, @code{const size_t} w)
-		This constructor creates an instance, where @var{security} is a nonnegative
-		integer that represents the security parameter @math{\kappa}. The parameter
-		@var{k} is the number of players and @var{w} is the number of bits which are
-		necessary to represent all possible card types in a binary representation.
+		This constructor creates an instance, where @var{security} is a
+		nonnegative integer that represents the security parameter
+		@math{\kappa}. The parameter @var{k} is the number of players and
+		@var{w} is the number of bits which are necessary to represent all
+		possible card types in a binary representation.
 		
-		The integer @math{\kappa} controls the maximum soundness error probability
-		(@math{2^{-\kappa}}) of the zero-knowledge proofs in the encoding scheme of
-		Schindelhauer. Specifically, @var{security} defines the number of sequential
-		iterations of the involved protocols and thus has a major impact on the
-		computational and communication complexity. If the encoding scheme of Barnett
-		and Smart@tie{}[BS03] is used, then it only defines the soundness error
-		probability (also @math{2^{-\kappa}}) of the corresponding shuffle proof.
-		However, if the efficient shuffle verification protocol of Groth@tie{}[Gr05]
-		is used, then the parameter @var{security} is dispensable, because the parameter
-		@var{ell_e} given during instantiation of @code{GrothVSSHE} (e.g. the LibTMCG
-		default security parameter @code{TMCG_GROTH_L_E}) determines this soundness
-		error probability (@math{2^{-\ell_e}}).
-		The similar holds for the verifiable rotation protocol@tie{}[HSSV09], however,
-		in this case there is no explicit security parameter for the soundness error.
+		The integer @math{\kappa} controls the maximum soundness error
+		probability (@math{2^{-\kappa}}) of the zero-knowledge proofs in the
+		encoding scheme of Schindelhauer. Specifically, @var{security} defines
+		the number of sequential iterations of the involved protocols and thus
+		has a major impact on the computational and communication complexity.
+		If the encoding scheme of Barnett and Smart@tie{}[BS03] is used, then
+		it only defines the soundness error probability (also
+		@math{2^{-\kappa}}) of the corresponding shuffle proof. However, if the
+		efficient shuffle verification protocol of Groth@tie{}[Gr05] is used,
+		then the parameter @var{security} is dispensable, because the parameter
+		@var{ell_e} given during instantiation of @code{GrothVSSHE} (e.g. the
+		LibTMCG default security parameter @code{TMCG_GROTH_L_E}) determines
+		this soundness error probability (@math{2^{-\ell_e}}).
+		The similar holds for the verifiable rotation protocol@tie{}[HSSV09],
+		however, in this case there is no explicit security parameter for the
+		soundness error.
 		
-		Unfortunately, the parameters @var{k} and @var{w} have a major impact on the
-		complexity in the encoding scheme of Schindelhauer, too. Therefore you should
-		always use reasonable values here. For example, to create a deck with @math{M}
-		different card types simply set @var{w} to @math{\lceil\log_2 M\rceil} which
-		is an tight upper-bound for the applied binary representation. Furthermore,
-		set @var{k} to the number of players which are really involved and not to a
-		possible maximum value.
+		Unfortunately, the parameters @var{k} and @var{w} have a major impact
+		on the complexity in the encoding scheme of Schindelhauer, too.
+		Therefore you should always use reasonable values here. For example,
+		to create a deck with @math{M} different card types simply set @var{w}
+		to @math{\lceil\log_2 M\rceil} which is an tight upper-bound for the
+		applied binary representation. Furthermore, set @var{k} to the number
+		of players which are really involved and not to a possible maximum
+		value.
 		Note that @var{k} and @var{w} are limited by the global constants
 		@code{TMCG_MAX_PLAYERS} and @code{TMCG_MAX_TYPEBITS}, respectively.
 	@end deftypeop
@@ -2905,12 +3024,13 @@ or stack operations.
 	
 	@deftypemethod SchindelhauerTMCG void TMCG_CreateOpenCard (@code{VTMF_Card&} c, @code{BarnettSmartVTMF_dlog*} vtmf, @code{const size_t} type)
 		This method initializes the open card @var{c} with the given @var{type}
-		using the encoding scheme of Barnett and Smart. The @var{type} MUST be an
-		integer from the interval @math{[0, 2^{w} - 1]}, where @math{w} is the
-		number given to the constructor of this class. The parameter @var{vtmf}
-		is a pointer to an already initialized VTMF instance, i.e. the key
-		generation protocol was successfully finished (@pxref{BarnettSmartVTMF}
-		and @code{BarnettSmartVTMF_dlog_GroupQR}, respectively).
+		using the encoding scheme of Barnett and Smart. The @var{type} MUST be
+		an integer from the interval @math{[0, 2^{w} - 1]}, where @math{w} is
+		the number given to the constructor of this class. The parameter
+		@var{vtmf} is a pointer to an already initialized VTMF instance, i.e.
+		the key generation protocol was successfully finished
+		(@pxref{BarnettSmartVTMF} and @code{BarnettSmartVTMF_dlog_GroupQR},
+		respectively).
 	@end deftypemethod
 	
 	@deftypemethod SchindelhauerTMCG void TMCG_CreateCardSecret (@code{TMCG_CardSecret&} cs, @code{const TMCG_PublicKeyRing&} ring, @code{const size_t} index)
@@ -2933,70 +3053,73 @@ or stack operations.
 	@end deftypemethod
 	
 	@deftypemethod SchindelhauerTMCG void TMCG_CreatePrivateCard (@code{TMCG_Card&} c, @code{TMCG_CardSecret&} cs, @code{const TMCG_PublicKeyRing&} ring, @code{const size_t} index, @code{const size_t} type)
-		This method initializes a masked card @var{c} with the given @var{type} and
-		a corresponding card secret @var{cs} using the encoding scheme of
-		Schindelhauer.
-		The @var{type} MUST be an integer from the interval @math{[0, 2^{w} - 1]},
-		where @math{w} is the number given to the constructor of this class. The
-		@math{w} MUST be the same number as used at creation of @var{c} and @var{cs}
-		(@pxref{Data Types}). The parameter
-		@var{ring} is a container with exactly @math{k} public keys, where @math{k}
-		is the number given to the constructor of this class. The @math{k} MUST be
-		the same number as used at the creation of @var{c} and @var{cs}. The parameter
-		@var{index} is from the interval @math{[0, k - 1]} and determines the
-		position of the players public key in the container @var{ring}.
+		This method initializes a masked card @var{c} with the given @var{type}
+		and a corresponding card secret @var{cs} using the encoding scheme of
+		Schindelhauer. The @var{type} MUST be an integer from the interval
+		@math{[0, 2^{w} - 1]}, where @math{w} is the number given to the
+		constructor of this class. The @math{w} MUST be the same number as used
+		at creation of @var{c} and @var{cs} (@pxref{Data Types}). The parameter
+		@var{ring} is a container with exactly @math{k} public keys, where
+		@math{k} is the number given to the constructor of this class. The
+		@math{k} MUST be the same number as used at the creation of @var{c} and
+		@var{cs}. The parameter @var{index} is from the interval
+		@math{[0, k - 1]} and determines the position of the players public
+		key in the container @var{ring}.
 		Internally, @code{TMCG_CreatePrivateCard} calls
 		@enumerate
-			@item @code{TMCG_CreateOpenCard} to initialize @var{c} with @var{type},
-			@item @code{TMCG_CreateCardSecret} to initialize @var{cs} with random
-				values, and
+			@item @code{TMCG_CreateOpenCard} to initialize @var{c} with
+				@var{type},
+			@item @code{TMCG_CreateCardSecret} to initialize @var{cs} with
+				random values, and
 			@item @code{TMCG_MaskCard} to mask @var{c} with the secret @var{cs}.
 		@end enumerate
 	@end deftypemethod
 	
 	@deftypemethod SchindelhauerTMCG void TMCG_CreatePrivateCard (@code{VTMF_Card&} c, @code{VTMF_CardSecret&} cs, @code{BarnettSmartVTMF_dlog*} vtmf, @code{const size_t} type)
-		This method initializes a masked card @var{c} with the given @var{type} and
-		a corresponding card secret @var{cs} using the encoding scheme of Barnett and
-		Smart. The @var{type} MUST be an integer from the interval
-		@math{[0, 2^{w} - 1]}, where @math{w} is the number given to the constructor
-		of this class. The parameter @var{vtmf} is a pointer to an already initialized
-		VTMF instance, i.e. the key generation protocol MUST be successfully finished
-		(@pxref{BarnettSmartVTMF}). Specifically, @code{TMCG_CreatePrivateCard} directly
-		executes the masking operation of the verifiable masking protocol.
+		This method initializes a masked card @var{c} with the given @var{type}
+		and a corresponding card secret @var{cs} using the encoding scheme of
+		Barnett and Smart. The @var{type} MUST be an integer from the interval
+		@math{[0, 2^{w} - 1]}, where @math{w} is the number given to the
+		constructor of this class. The parameter @var{vtmf} is a pointer to an
+		already initialized VTMF instance, i.e. the key generation protocol
+		MUST be successfully finished (@pxref{BarnettSmartVTMF}). Specifically,
+		@code{TMCG_CreatePrivateCard} directly executes the masking operation
+		of the verifiable masking protocol.
 	@end deftypemethod
 	
 	@deftypemethod SchindelhauerTMCG void TMCG_MaskCard (@code{const TMCG_Card&} c, @code{TMCG_Card&} cc, @code{const TMCG_CardSecret&} cs, @code{const TMCG_PublicKeyRing&} ring, @code{const bool} TimingAttackProtection @code{=true})
-		This method performs a masking operation on the open or already masked card
-		@var{c} using the encoding scheme of Schindelhauer. Finally it returns the
-		result in @var{cc}.
-		The parameter @var{cs} MUST be an initialized fresh card secret which has NEVER
-		been involved in a masking operation before. The parameters @var{c}, @var{cc},
-		and @var{cs} MUST be created such that their @math{k} and @math{w}
-		corresponds to the numbers given to the constructor of this class,
-		respectively. The parameter @var{ring} is a container with exactly
-		@math{k} public keys.
+		This method performs a masking operation on the open or already masked
+		card @var{c} using the encoding scheme of Schindelhauer. Finally it
+		returns the result in @var{cc}.
+		The parameter @var{cs} MUST be an initialized fresh card secret which
+		has NEVER been involved in a masking operation before. The parameters
+		@var{c}, @var{cc}, and @var{cs} MUST be created such that their @math{k}
+		and @math{w} corresponds to the numbers given to the constructor of this
+		class, respectively. The parameter @var{ring} is a container with
+		exactly @math{k} public keys.
 		The protection against timing attacks is turned on, if
 		@var{TimingAttackProtection} is set to @code{true}.
 	@end deftypemethod
 	
 	@deftypemethod SchindelhauerTMCG void TMCG_MaskCard (@code{const VTMF_Card&} c, @code{VTMF_Card&} cc, @code{const VTMF_CardSecret&} cs, @code{BarnettSmartVTMF_dlog*} vtmf, @code{const bool} TimingAttackProtection @code{=true})
-		This method performs a masking operation on the open or already masked card
-		@var{c} using the encoding scheme of Barnett and Smart. Finally it returns the
-		result in @var{cc}. Specifically, @code{TMCG_MaskCard} directly executes
-		the masking operation of the verifiable re-masking protocol.
-		The parameter @var{cs} MUST be an initialized fresh card secret which has
-		NEVER been involved in a masking operation before.
+		This method performs a masking operation on the open or already masked
+		card @var{c} using the encoding scheme of Barnett and Smart. Finally it
+		returns the result in @var{cc}. Specifically, @code{TMCG_MaskCard}
+		directly executes the masking operation of the verifiable re-masking
+		protocol. The parameter @var{cs} MUST be an initialized fresh card
+		secret which has NEVER been involved in a masking operation before.
 		The parameter @var{vtmf} is a pointer to an already initialized
-		VTMF instance, i.e. the key generation protocol MUST be successfully finished
-		(@pxref{BarnettSmartVTMF}). The protection against timing attacks is turned on, if
-		@var{TimingAttackProtection} is set to @code{true}.
+		VTMF instance, i.e. the key generation protocol MUST be successfully
+		finished (@pxref{BarnettSmartVTMF}). The protection against timing
+		attacks is turned on, if @var{TimingAttackProtection} is set to
+		@code{true}.
 	@end deftypemethod
 	
 	@deftypemethod SchindelhauerTMCG void TMCG_ProveMaskCard (@code{const TMCG_Card&} c, @code{const TMCG_Card&} cc, @code{const TMCG_CardSecret&} cs, @code{const TMCG_PublicKeyRing&} ring, @code{std::istream&} in, @code{std::ostream&} out)
-		This method should be called by the prover after @code{TMCG_MaskCard} to show
-		that he performed the masking operation correctly. The parameters @var{c},
-		@var{cc}, and @var{cs} are the input, the result, and the used card secret
-		of @code{TMCG_MaskCard}, respectively.
+		This method should be called by the prover after @code{TMCG_MaskCard}
+		to show that he performed the masking operation correctly. The
+		parameters @var{c}, @var{cc}, and @var{cs} are the input, the result,
+		and the used card secret of @code{TMCG_MaskCard}, respectively.
 		They MUST be created such that their @math{k} resp. @math{w}
 		corresponds to the numbers given to the constructor of this class. The
 		parameter @var{ring} is a container with exactly @math{k} public keys.
@@ -3005,26 +3128,26 @@ or stack operations.
 	@end deftypemethod
 	
 	@deftypemethod SchindelhauerTMCG void TMCG_ProveMaskCard (@code{const VTMF_Card&} c, @code{const VTMF_Card&} cc, @code{const VTMF_CardSecret&} cs, @code{BarnettSmartVTMF_dlog*} vtmf, @code{std::istream&} in, @code{std::ostream&} out)
-		This method should be executed by the prover after calling @code{TMCG_MaskCard}
-		to show that he performed the masking operation correctly. Specifically,
-		@code{TMCG_ProveMaskCard} directly calls the prove operation of the
-		verifiable re-masking protocol.
-		The parameters @var{c}, @var{cc}, and @var{cs} are the input, the result, and
-		the used card secret of @code{TMCG_MaskCard}, respectively.
-		The parameter @var{vtmf} is a pointer to an already initialized VTMF instance,
-		i.e. the key generation protocol MUST be successfully finished.
-		The input/output protocol messages from and to the verifier are
-		transmitted on the streams @var{in} and @var{out}, respectively.
+		This method should be executed by the prover after calling
+		@code{TMCG_MaskCard} to show that he performed the masking operation
+		correctly. Specifically, @code{TMCG_ProveMaskCard} directly calls the
+		prove operation of the verifiable re-masking protocol.
+		The parameters @var{c}, @var{cc}, and @var{cs} are the input, the
+		result, and the used card secret of @code{TMCG_MaskCard}, respectively.
+		The parameter @var{vtmf} is a pointer to an already initialized VTMF
+		instance, i.e. the key generation protocol MUST be successfully
+		finished. The protocol messages from and to the verifier are transmitted
+		on the streams @var{in} and @var{out}, respectively.
 	@end deftypemethod
 	
 	@deftypemethod SchindelhauerTMCG bool TMCG_VerifyMaskCard (@code{const TMCG_Card&} c, @code{const TMCG_Card&} cc, @code{const TMCG_PublicKeyRing&} ring, @code{std::istream&} in, @code{std::ostream&} out)
 		This method should be executed by the verifier to check whether or not a
 		masking operation was performed correctly. The parameters @var{c} and
-		@var{cc} are the input and the result of @code{TMCG_MaskCard}, respectively.
-		They MUST be created such that their @math{k} resp. @math{w} corresponds to
-		the numbers given to the constructor of this class.
-		The parameter @var{ring} is a container with exactly @math{k} public keys.
-		The input/output protocol messages from and to the prover are
+		@var{cc} are the input and the result of @code{TMCG_MaskCard},
+		respectively. They MUST be created such that their @math{k} resp.
+		@math{w} corresponds to the numbers given to the constructor of this
+		class. The parameter @var{ring} is a container with exactly @math{k}
+		public keys. The protocol messages from and to the prover are
 		transmitted on the streams @var{in} and @var{out}, respectively.
 		The method returns @code{true}, if everything was sound.
 	@end deftypemethod
@@ -3034,10 +3157,10 @@ or stack operations.
 		masking operation was performed correctly. Specifically,
 		@code{TMCG_VerifyMaskCard} directly calls the verify operation of the
 		verifiable re-masking protocol. The parameters @var{c} and
-		@var{cc} are the input and the result of @code{TMCG_MaskCard}, respectively.
-		The parameter @var{vtmf} is a pointer to an already initialized VTMF instance,
-		i.e. the key generation protocol MUST be successfully finished.
-		The input/output protocol messages from and to the prover are
+		@var{cc} are the input and the result of @code{TMCG_MaskCard},
+		respectively. The parameter @var{vtmf} is a pointer to an already
+		initialized VTMF instance, i.e. the key generation protocol MUST be
+		successfully finished. The protocol messages from and to the prover are
 		transmitted on the streams @var{in} and @var{out}, respectively.
 		The method returns @code{true}, if everything was sound.
 	@end deftypemethod
@@ -3051,18 +3174,18 @@ or stack operations.
 		of the prover. The parameter @var{index} is from the
 		interval @math{[0, k - 1]} and contains the position of the provers
 		public key in the container @var{ring} (same as in @code{TMCG_CreateCardSecret}).
-		The input/output protocol messages from and to the verifier are
+		The protocol messages from and to the verifier are
 		transmitted on the streams @var{in} and @var{out}, respectively.
 	@end deftypemethod
 	
 	@deftypemethod SchindelhauerTMCG void TMCG_ProveCardSecret (@code{const VTMF_Card&} c, @code{BarnettSmartVTMF_dlog*} vtmf, @code{std::istream&} in, @code{std::ostream&} out)
 		This method is used to reveal the card type of @var{c} to a verifier.
 		Every player must execute this method as prover.
-		Specifically, @code{TMCG_ProveCardSecret} directly calls the prove operation of the
-		verifiable decryption protocol.
-		The parameter @var{vtmf} is a pointer to an already initialized VTMF instance,
-		i.e. the key generation protocol MUST be successfully finished.
-		The input/output protocol messages from and to the verifier are
+		Specifically, @code{TMCG_ProveCardSecret} directly calls the prove
+		operation of the verifiable decryption protocol.
+		The parameter @var{vtmf} is a pointer to an already initialized VTMF
+		instance, i.e. the key generation protocol MUST be successfully
+		finished. The protocol messages from and to the verifier are
 		transmitted on the streams @var{in} and @var{out}, respectively.
 	@end deftypemethod
 	
@@ -3144,7 +3267,8 @@ or stack operations.
 	
 	@deftypemethod SchindelhauerTMCG size_t TMCG_CreateStackSecret (@code{TMCG_StackSecret<TMCG_CardSecret>&} ss, @code{const bool} cyclic, @code{const TMCG_PublicKeyRing&} ring, @code{const size_t} index, @code{const size_t} size)
 		This method initializes the stack secret @var{ss} with a randomly and
-		uniformly chosen permutation (using the algorithm of Knuth) and fresh card secrets. Later this stack
+		uniformly chosen permutation (using the algorithm of Knuth) and fresh
+		card secrets. Later this stack
 		secret can be used to perform a secret shuffle operation on a stack.
 		If the parameter @var{cyclic} is set to @code{true}, then the permutation
 		is only a cyclic shift which might be of interest for particular
@@ -3156,8 +3280,8 @@ or stack operations.
 		@var{ring}. The parameter @var{size} determines the size of the created
 		stack secret, i.e. the number of cards in the corresponding stack. The
 		@var{size} is upper-bounded by @code{TMCG_MAX_CARDS}.
-		The method returns the offset of the cyclic shift, if @var{cyclic} was set
-		to @code{true}. Otherwise, the value @code{0} is returned.
+		The method returns the offset of the cyclic shift, if @var{cyclic} was
+		set to @code{true}. Otherwise, the value @code{0} is returned.
 	@end deftypemethod
 	
 	@deftypemethod SchindelhauerTMCG size_t TMCG_CreateStackSecret (@code{TMCG_StackSecret<VTMF_CardSecret>&} ss, @code{const bool} cyclic, @code{const size_t} size, @code{BarnettSmartVTMF_dlog*} vtmf)
@@ -3171,8 +3295,8 @@ or stack operations.
 		The parameter @var{size} determines the size of the created
 		stack secret, i.e. the number of cards in the corresponding stack. The
 		@var{size} is upper-bounded by @code{TMCG_MAX_CARDS}.
-		The parameter @var{vtmf} is a pointer to an already initialized VTMF instance,
-		i.e. the key generation protocol MUST be successfully finished.
+		The parameter @var{vtmf} is a pointer to an already initialized VTMF
+		instance, i.e. the key generation protocol MUST be successfully finished.
 		The method returns the offset of the cyclic shift, if @var{cyclic} was set
 		to @code{true}. Otherwise, the value @code{0} is returned.
 	@end deftypemethod
@@ -3361,23 +3485,23 @@ or stack operations.
 @chapter Examples
 @cindex Examples
 The following examples explain most of the steps that are necessary to create
-a secure and verifiable card game with LibTMCG. We consider an application with five
-permanent players (denoted by @math{P_0}, @math{P_1}, @math{P_2}, @math{P_3},
-and @math{P_4}) and a regular deck of 52@tie{}different cards. For convenience
-only the more efficient card encoding scheme of Barnett and Smart@tie{}[BS03]
-is described. Additionally, we complete our exposition with code fragments which
-show the application of the fast shuffle verification protocol due to
-Groth@tie{}[Gr05, Gr10] with an interactive or even non-interactive instantiation
-of the zero-knowledge proofs.
+a secure and verifiable card game with LibTMCG. We consider an application with
+five permanent players (denoted by @math{P_0}, @math{P_1}, @math{P_2},
+@math{P_3}, and @math{P_4} respectively) and a regular deck of 52@tie{}different
+cards. For convenience only the more efficient card encoding scheme of Barnett
+and Smart@tie{}[BS03] is described. Additionally, we complete our exposition
+with code fragments which show the application of the fast shuffle verification
+protocol due to Groth@tie{}[Gr05, Gr10] with an interactive or even
+non-interactive instantiation of the required zero-knowledge proofs.
 On modern computers this approach achieves good real world performance and
 simultaneously keeps the cheating probability negligible.
 
-Throughout the remaining pages we assume that all players are pairwise connected by
-authenticated communication channels. These channels are organized in input resp.
-output streams, where @code{input_stream[i]} resp. @code{output_stream[i]} denote
-the corresponding @code{std::istream} resp. @code{std::ostream} instance for the
-communication with player @math{P_i}.@footnote{We assume that the players
-are ordered in a natural way such that we can use an uniform nomenclature.}
+Throughout the remaining pages we assume that all players are pairwise connected
+by authenticated communication channels. These channels are organized in input
+resp. output streams, where @code{input_stream[i]} resp. @code{output_stream[i]}
+denote the corresponding @code{std::istream} resp. @code{std::ostream} instance
+for the communication with player @math{P_i}.@footnote{We assume that the
+players are ordered in a natural way such that we can use an uniform notation.}
 
 @menu
 * Library Initialization::
@@ -3459,10 +3583,10 @@ SchindelhauerTMCG *tmcg = new SchindelhauerTMCG(64, 5, 6);
 @end cartouche
 In our example we would like to use the more efficient encoding scheme of
 Barnett and Smart, thus we create an instance of @code{BarnettSmartVTMF_dlog}.
-However, a particular player has to act as a @emph{leader} who performs the
-generation of the group @math{G} as a common refrence. In our case
-@math{P_0} will be the session leader. First, he executes the constructor
-of the class @code{BarnettSmartVTMF_dlog} that may take some time.
+However, a particular player has to act as a @emph{leader}, who performs the
+generation of the group @math{G} as common domain parameter set. Here @math{P_0}
+is the session leader. First, he executes the constructor of the class
+@code{BarnettSmartVTMF_dlog} that may take some time to finish.
 @cartouche
 @example
 BarnettSmartVTMF_dlog *vtmf = new BarnettSmartVTMF_dlog();
@@ -3560,7 +3684,7 @@ GrothVSSHE *vsshe = new GrothVSSHE(52, vtmf->p, vtmf->q, vtmf->k,
   vtmf->g, vtmf->h);
 @end example
 @end cartouche
-Again, @math{P_0} will send the public parameters of the VSSHE instance to
+Again, @math{P_0} must send the public parameters of the VSSHE instance to
 all other players.
 @cartouche
 @example
@@ -3589,8 +3713,8 @@ if (mpz_cmp(vtmf->p, vsshe->p) || mpz_cmp(vtmf->q, vsshe->q) ||
 Last but not least the setup of some internal generators must be accomplished
 by all players in a verifiable way (@pxref{GrothVSSHE}).@footnote{There is also
 the possibility to use the simple variant of @code{SetupGenerators_publiccoin}
-with the already generated public key @math{h} as a common random value. However,
-this value should be refreshed periodically.}
+with the already generated public key @math{h} as a common random value.
+However, this value should be refreshed periodically.}
 @cartouche
 @example
 std::stringstream err_log;
@@ -3627,7 +3751,7 @@ tmcg->TMCG_CreateOpenCard(c, vtmf, 7);
 
 @node Masking and Re-masking of a Card
 @subsection Masking and Re-masking of a Card
-Now the previously created card @code{c} will be masked to hide its type.
+Now the previously created card @code{c} must be masked to hide its type.
 Then @code{cc} is sent to @math{P_1}.
 @cartouche
 @example
@@ -3638,9 +3762,9 @@ tmcg->TMCG_MaskCard(c, cc, cs, vtmf);
 out_stream[1] << cc << std::endl;
 @end example
 @end cartouche
-@math{P_1} receives the card @code{cc}, re-masks them, and sends the result @code{ccc}
-back to the player @math{P_0}. Further he proves that the masking operation
-was performed correctly.
+@math{P_1} receives the card @code{cc}, re-masks them, and sends the result
+@code{ccc} back to the player @math{P_0}. Further he proves that the masking
+operation was performed correctly.
 @cartouche
 @example
 VTMF_Card cc, ccc;
@@ -3654,8 +3778,8 @@ out_stream[0] << ccc << std::endl;
 tmcg->TMCG_ProveMaskCard(cc, ccc, ccs, vtmf, in_stream[0], out_stream[0]);
 @end example
 @end cartouche
-@math{P_0} receives the card, verifies the proof, and sends the card to all other
-players.
+@math{P_0} receives the card, verifies the proof, and sends the card to all
+other players.
 @cartouche
 @example
 VTMF_Card ccc;
@@ -3673,14 +3797,14 @@ Finally, all other players receive and store the masked card @code{ccc}.
 Suppose that @math{P_1} would like to know the type of the masked card @code{ccc}.
 Of course, @math{P_0} could simply reveal it, but that isn't verifiable. Anyway,
 if all players cooperate, then @math{P_1} can compute the type in a verifiable
-way. First, every player (except @math{P_1}) will execute the following code.
+way. First, every player (except @math{P_1}) must execute the following code.
 @cartouche
 @example
 tmcg->TMCG_ProveCardSecret(ccc, vtmf, in_stream[1], out_stream[1]);
 @end example
 @end cartouche
 This sends the necessary data to @math{P_1} and proves their correctness.
-On the other hand, @math{P_1} will execute the following commands exactly
+On the other hand, @math{P_1} must execute the following commands exactly
 in the given order. Finally, he obtain the card type in the variable @code{type}.
 Note that the corresponding function @code{TMCG_VerifyCardSecret} is not
 called for his own index @code{1}.
@@ -3702,9 +3826,9 @@ Please notice that first @code{TMCG_SelfCardSecret} is called, then
 
 @node Operations on Stacks
 @section Operations on Stacks
-There exist a lot of basic operations on stacks, e.g. pushing a card to a stack
-or importing a stack. These functions are to simple for explaining them here, but
-they are used implicitly. However, a short description can be found in the
+There are a lot of basic operations on stacks, e.g. pushing a card to a stack
+or importing a stack. These functions are to simple for explaining them here,
+but they are used implicitly. However, a short description can be found in the
 API part of the manual (@pxref{Data Types}).
 
 @menu
@@ -3715,10 +3839,10 @@ API part of the manual (@pxref{Data Types}).
 
 @node Creating the Deck
 @subsection Creating the Deck
-A quite common operation is the creation of a card deck. The deck will
-initially be represented by an open stack (see @code{TMCG_OpenStack}) called
-@code{deck}. Every player creates his own instance of the deck, which consists
-of 52@tie{}open cards of different type in our example.
+A quite common operation is the creation of a card deck. Initially, the deck is
+represented by an open stack (see @code{TMCG_OpenStack}) called @code{deck}.
+Every player creates his own instance of the deck, which consists of
+52@tie{}open cards of different type in our example.
 @cartouche
 @example
 TMCG_OpenStack<VTMF_Card> deck;
@@ -3749,13 +3873,14 @@ guarantees that no coalition has influence on the outcome. Thus we build a
 shuffle chain (e.g. using the strict total order @math{P_i < P_j}, if and only
 if @math{i < j}) such that each player shuffles the deck once.
 
-First the regular stack @code{s} is initialized with open cards from @code{deck}.
-Then each player shuffles the stack (@pxref{SchindelhauerTMCG}, i.e, @code{TMCG_MixStack}) using randomness
-(see @code{TMCG_CreateStackSecret}) and proves the correctness of this operation
-(see @code{TMCG_ProveStackEquality}). Consequently, every player should verify
-these proofs (see @code{TMCG_VerifyStackEquality}) and complain deviations immediately.
-Finally, the stack @code{s} contains the shuffled result. Consider the following
-code fragment for the player @math{P_j}.
+First, the stack @code{s} is initialized with open cards from @code{deck}.
+Then each player shuffles the stack (@pxref{SchindelhauerTMCG}, i.e,
+@code{TMCG_MixStack}) using randomness (see @code{TMCG_CreateStackSecret}) and
+proves the correctness of this operation (see @code{TMCG_ProveStackEquality}).
+Consequently, every player should verify these proofs (see
+@code{TMCG_VerifyStackEquality}) and complain deviations immediately. Finally,
+the stack @code{s} contains the shuffled result. Consider the following code
+fragment for the player @math{P_j}.
 
 @cartouche
 @example
@@ -3793,14 +3918,16 @@ for (size_t i = 0; i < 5; i++)
 If you want to use the more efficient shuffle verification protocol of Groth,
 then you have to replace @code{TMCG_ProveStackEquality} and
 @code{TMCG_VerifyStackEquality} by @code{TMCG_ProveStackEquality_Groth} and
-@code{TMCG_VerifyStackEquality_Groth}, respectively.@footnote{The non-interactive
-version of Groth's protocol (see @code{TMCG_ProveStackEquality_Groth_noninteractive} and
-@code{TMCG_VerifyStackEquality_Groth_noninteractive}) provides an even more efficient
-implementation, because the prover has to compute the argument of correctness only once.
-Additionallly, it protects agains malicious verifiers and reduces the communication
-complexity, i.e. instead of @math{O(n^2)} the prover must perform only
-@math{O(n)} steps. Thus this approach is strongly recommended. However, the security
-then relies on the random oracle assumption. Please have a look at the included source
+@code{TMCG_VerifyStackEquality_Groth}, respectively.@footnote{The
+non-interactive version of Groth's protocol (see
+@code{TMCG_ProveStackEquality_Groth_noninteractive} and
+@code{TMCG_VerifyStackEquality_Groth_noninteractive}) provides an even more
+efficient implementation, because the prover has to compute the argument of
+correctness only once. Additionallly, it protects agains malicious verifiers
+and reduces the communication complexity, i.e. instead of @math{O(n^2)} the
+prover must perform only @math{O(n)} steps. Thus this approach is strongly
+recommended. However, the security then relies on the random oracle assumption.
+Please have a look at the included source
 code @file{tests/t-poker-noninteractive.cc} to get a clue.}
 
 @node Drawing a Card from the Deck
@@ -3885,31 +4012,33 @@ We have implemented a robust and secure protocol for Distributed Key Generation
 (DKG) of public-key cryptosystems (see Rosario Gennaro, Stanislaw Jarecki,
 Hugo Krawczyk, and Tal Rabin: @emph{Secure Distributed Key Generation for
 Discrete-Log Based Cryptosystems}, Journal of Cryptology, Vol. 20 Nr. 1,
-Springer 2007). Moreover, LibTMCG also provides a robust and secure protocol for
-threshold DSA/DSS (see Ran Canetti, Rosario Gennaro, Stanislaw Jarecki,
+Springer 2007). Moreover, LibTMCG also provides a robust and secure protocol
+for threshold DSA/DSS (see Ran Canetti, Rosario Gennaro, Stanislaw Jarecki,
 Hugo Krawczyk, and Tal Rabin: @emph{Adaptive Security for Threshold
-Cryptosystems}, Advances in Cryptology -- Proceedings of CRYPTO '99, Lecture Notes
-in Computer Science 1666, Springer 1999). Robustness and security means that
-up to @math{t \le n/2} resp. @math{t \le n/3} parties can act maliciously and
-the protocols still produce some result (e.g. a valid DSA/DSS signature on a
-given hash value).
+Cryptosystems}, Advances in Cryptology -- Proceedings of CRYPTO '99, Lecture
+Notes in Computer Science 1666, Springer 1999). Robustness and security means
+here that up to @math{t \le n/2} resp. @math{t \le n/3} parties can act
+maliciously and the protocols still produce some result, for example a valid
+DSA/DSS signature on a common input (e.g. hash value).
 
-The current implementation is in @emph{experimental state} and should not be used
-in production environments. Motivation, cryptographical background and some usage
-scenarios have been presented recently at 26th Krypto-Tag (GI Working Group) and
-Datengarten/81 (CCCB). Please consult the @uref{http://www.nongnu.org/libtmcg/dg81_slides.pdf,,slides}
-for a first overview. The former DKG tools have been removed from this release. These
-programs are continued in a separate package called @emph{Distributed Privacy Guard} (DKGPG).
+The current implementation is in @emph{experimental state} and should not be
+used in production environments. Motivation, cryptographical background and
+some usage scenarios have been presented recently at 26th Krypto-Tag (GI
+Working Group) and Datengarten/81 (CCCB). Please consult the
+@uref{http://www.nongnu.org/libtmcg/dg81_slides.pdf,,slides}
+for a first overview. The former DKG tools have been removed from this release.
+These programs are continued in a separate package called @emph{Distributed
+Privacy Guard} (DKGPG).
 
-Please report any bugs to the maintainer of LibTMCG. Every help with development
-or testing of these DKG protocols and programs is very welcome!
+Please report any bugs to the maintainer of LibTMCG. Every help with
+development or testing of these DKG protocols and programs is very welcome!
 
 @section Oblivious Transfer Protocols
 We have implemented two basic variants for oblivous transfer (see Moni Naor
-and Benny Pinkas: @emph{Efficient Oblivious Transfer Protocols}, Proceedings of
-the Symposium on Discrete Algorithms (SODA), ACM/SIAM 2001) in the class
-@code{NaorPinkasEOTP}: a 1-out-of-2 transfer and a 1-out-of-N transfer.
-The chooser's security is based on the DDH assumption and the sender's security
+and Benny Pinkas: @emph{Efficient Oblivious Transfer Protocols}, Proceedings
+of the Symposium on Discrete Algorithms (SODA), ACM/SIAM 2001) in the class
+@code{NaorPinkasEOTP}: a 1-out-of-2 transfer and a 1-out-of-N transfer. The
+chooser's security is based on the DDH assumption and the sender's security
 is information-theoretic.
 
 @c **********************************************************
