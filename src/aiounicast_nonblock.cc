@@ -3,7 +3,7 @@
 
    This file is part of LibTMCG.
 
- Copyright (C) 2017, 2018, 2019  Heiko Stamer <HeikoStamer@gmx.net>
+ Copyright (C) 2017, 2018  Heiko Stamer <HeikoStamer@gmx.net>
 
    LibTMCG is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <sstream>
 #include "mpz_srandom.hh"
 
 aiounicast_nonblock::aiounicast_nonblock
@@ -44,10 +43,9 @@ aiounicast_nonblock::aiounicast_nonblock
 	 const size_t aio_default_scheduler_in,
 	 const time_t aio_default_timeout_in,
 	 const bool aio_is_authenticated_in,
-	 const bool aio_is_encrypted_in,
-	 const bool aio_is_chunked_in):
+	 const bool aio_is_encrypted_in):
 		aiounicast(n_in, j_in, aio_default_scheduler_in, aio_default_timeout_in,
-			aio_is_authenticated_in, aio_is_encrypted_in, aio_is_chunked_in)
+			aio_is_authenticated_in, aio_is_encrypted_in)
 {
 	if (j_in >= n_in)
 		throw std::invalid_argument("aiounicast_nonblock: j >= n");
@@ -149,13 +147,6 @@ aiounicast_nonblock::aiounicast_nonblock
 				std::endl << gcry_strerror(err) << std::endl;
 			throw std::invalid_argument("aiounicast_nonblock: libgcrypt failed");
 		}
-		mpz_ptr tmp_in = new mpz_t();
-		mpz_init_set_ui(tmp_in, 1UL); // initial sequence number
-		mac_sqn_in.push_back(tmp_in);
-		mpz_ptr tmp_out = new mpz_t();
-		mpz_init_set_ui(tmp_out, 1UL); // initial sequence number
-		mac_sqn_out.push_back(tmp_out);
-		bad_auth.push_back(false); // bad authentication flag
 	}
 
 	// initialize ciphers
@@ -437,16 +428,6 @@ bool aiounicast_nonblock::Send
 	}
 	if (aio_is_authenticated)
 	{
-		std::stringstream sqn; // include sequence number into MAC
-		sqn << mac_sqn_out[i_in];
-		err = gcry_mac_write(*mac_out[i_in],
-			(sqn.str()).c_str(), (sqn.str()).length());
-		if (err)
-		{
-			std::cerr << "aiounicast_nonblock: gcry_mac_write()" <<
-				" failed" << std::endl << gcry_strerror(err) << std::endl;
-			return false;
-		}
 		// get current MAC buffer and reset MAC
 		size_t macbuflen = maclen;
 		unsigned char *macbuf = new unsigned char[macbuflen];
@@ -502,7 +483,6 @@ bool aiounicast_nonblock::Send
 				" MAC send timeout for " << i_in << std::endl;
 			return false;
 		}
-		mpz_add_ui(mac_sqn_out[i_in], mac_sqn_out[i_in], 1UL);
 	}
 	return true;
 }
@@ -530,7 +510,6 @@ bool aiounicast_nonblock::Receive
 	 size_t scheduler,
 	 time_t timeout)
 {
-	unsigned char mac[maclen + 1];
 	if (!aio_is_initialized)
 		return false;
 	if (scheduler == aio_scheduler_default)
@@ -583,33 +562,33 @@ bool aiounicast_nonblock::Receive
 					// allocate at least one char
 					size_t tmplen = newline_ptr + 1;
 					char *tmp = new char[tmplen];
+					// allocate at least one char, even if maclen == 0
+					unsigned char *mac = new unsigned char[maclen + 1];
 					memset(tmp, 0, tmplen);
-					memset(mac, 0, sizeof(mac));
+					memset(mac, 0, maclen);
 					if (newline_ptr > 0)
 						memcpy(tmp, buf_in[i_out], newline_ptr);
 					if (maclen > 0)
 						memcpy(mac, buf_in[i_out] + tmplen, maclen);
-					bool discard = false;
+					// adjust buffer (copy remaining characters)
+					unsigned char *wptr = buf_in[i_out] + tmplen + maclen;
+					size_t wnum = buf_ptr[i_out] - newline_ptr - 1 - maclen;
+					if (wnum > 0)
+						memmove(buf_in[i_out], wptr, wnum);
+					else
+						buf_flag[i_out] = false;
+					buf_ptr[i_out] = wnum;
 					// calculate, check, and reset MAC
 					if (aio_is_authenticated)
 					{
 						gcry_error_t err;
-						err = gcry_mac_reset(*mac_in[i_out]);
-						if (err)
-						{
-							std::cerr << "aiounicast_nonblock:" <<
-								" gcry_mac_reset() failed" << std::endl <<
-								gcry_strerror(err) << std::endl;
-							delete [] tmp;
-							return false;
-						}
 						err = gcry_mac_write(*mac_in[i_out], tmp, newline_ptr);
 						if (err)
 						{
 							std::cerr << "aiounicast_nonblock:" <<
 								"gcry_mac_write() failed" << std::endl <<
 								gcry_strerror(err) << std::endl;
-							delete [] tmp;
+							delete [] tmp, delete [] mac;
 							return false;
 						}
 						numAuthenticated += newline_ptr;
@@ -620,58 +599,29 @@ bool aiounicast_nonblock::Receive
 							std::cerr << "aiounicast_nonblock:" <<
 								" gcry_mac_write() failed" << std::endl <<
 								gcry_strerror(err) << std::endl;
-							delete [] tmp;
+							delete [] tmp, delete [] mac;
 							return false;
 						}
 						numAuthenticated += 1;
-						std::stringstream sqn; // include sequence number
-						sqn << mac_sqn_in[i_out];
-						err = gcry_mac_write(*mac_in[i_out],
-							(sqn.str()).c_str(), (sqn.str()).length());
-						if (err)
-						{
-							std::cerr << "aiounicast_nonblock:" <<
-								" gcry_mac_write() failed" << std::endl <<
-								gcry_strerror(err) << std::endl;
-							delete [] tmp;
-							return false;
-						}
 						err = gcry_mac_verify(*mac_in[i_out], mac, maclen);
 						if (err)
 						{
 							std::cerr << "aiounicast_nonblock:" <<
-								" gcry_mac_verify() failed for " << j <<
-								" in stream from " << i_out <<
-								" (sqn=" << mac_sqn_in[i_out] << ")" <<
-								std::endl << gcry_strerror(err) << std::endl;
-							bad_auth[i_out] = true;
-							if (mpz_cmp_ui(mac_sqn_in[i_out], 1UL))
-							{
-								delete [] tmp;
-								return false;
-							}
-							else
-								discard = true;
+								" gcry_mac_verify() for " << j << " from " <<
+								i_out << " failed" << std::endl <<
+								gcry_strerror(err) << std::endl;
+							delete [] tmp, delete [] mac;
+							return false;
 						}
-						else
+						err = gcry_mac_reset(*mac_in[i_out]);
+						if (err)
 						{
-							bad_auth[i_out] = false;
-							mpz_add_ui(mac_sqn_in[i_out],
-								mac_sqn_in[i_out], 1UL);
+							std::cerr << "aiounicast_nonblock:" <<
+								" gcry_mac_reset() failed" << std::endl <<
+								gcry_strerror(err) << std::endl;
+							delete [] tmp, delete [] mac;
+							return false;
 						}
-					}
-					// adjust buffer (copy remaining characters)
-					unsigned char *wptr = buf_in[i_out] + tmplen + maclen;
-					size_t wnum = buf_ptr[i_out] - newline_ptr - 1 - maclen;
-					if (wnum > 0)
-						memmove(buf_in[i_out], wptr, wnum);
-					else
-						buf_flag[i_out] = false;
-					buf_ptr[i_out] = wnum;
-					if (discard)
-					{
-						delete [] tmp;
-						return false;
 					}
 					// convert and decrypt the corresponding part of read buffer
 					if (aio_is_encrypted)
@@ -682,7 +632,7 @@ bool aiounicast_nonblock::Receive
 						{
 							std::cerr << "aiounicast_nonblock: mpz_set_str()" <<
 								" for encval failed" << std::endl;
-							delete [] tmp;
+							delete [] tmp, delete [] mac;
 							return false;
 						}
 						size_t realsize = 0;
@@ -692,7 +642,7 @@ bool aiounicast_nonblock::Receive
 						{
 							std::cerr << "aiounicast_nonblock: mpz_export()" <<
 								" failed for " << encval << std::endl;
-							delete [] tmp;
+							delete [] tmp, delete [] mac;
 							return false;
 						}
 						mpz_clear(encval);
@@ -700,7 +650,7 @@ bool aiounicast_nonblock::Receive
 						{
 							std::cerr << "aiounicast_nonblock: no prefix" <<
 								" found" << std::endl;
-							delete [] tmp;
+							delete [] tmp, delete [] mac;
 							return false;
 						}
 						gcry_error_t err;
@@ -711,7 +661,7 @@ bool aiounicast_nonblock::Receive
 							std::cerr << "aiounicast_nonblock:" <<
 								" gcry_cipher_decrypt() failed" << std::endl <<
 								gcry_strerror(err) << std::endl;
-							delete [] tmp;
+							delete [] tmp, delete [] mac;
 							return false;
 						}
 						numDecrypted += (realsize - 1);
@@ -723,20 +673,12 @@ bool aiounicast_nonblock::Receive
 					{
 						std::cerr << "aiounicast_nonblock: mpz_set_str() for" <<
 							" m from " << i_out << " failed" << std::endl;
-						delete [] tmp;
+						delete [] tmp, delete [] mac;
 						return false;
 					}
-					delete [] tmp;
+					delete [] tmp, delete [] mac;
 					if (aio_is_encrypted)
-					{
-						if (mpz_cmp(m, aio_hide_length) < 0)
-						{
-							std::cerr << "aiounicast_nonblock: m < aio_hide" <<
-								"_length for m from " << i_out << std::endl;
-							return false;
-						}
 						mpz_sub(m, m, aio_hide_length);
-					}
 					return true;
 				}
 				// no delimiter found; invalidate buffer flag
@@ -895,19 +837,6 @@ bool aiounicast_nonblock::Receive
 	return false;			
 }
 
-void aiounicast_nonblock::Reset
-	(const size_t i_in, const bool input)
-{
-	// reset sequence numbers for authentication
-	if (aio_is_authenticated)
-	{
-		if (input)
-			mpz_set_ui(mac_sqn_in[i_in], 1UL); // initial sequence number
-		else
-			mpz_set_ui(mac_sqn_out[i_in], 1UL); // initial sequence number
-	}
-}
-
 aiounicast_nonblock::~aiounicast_nonblock
 	()
 {
@@ -940,19 +869,6 @@ aiounicast_nonblock::~aiounicast_nonblock
 	buf_mpz.clear();
 	iv_out.clear(), iv_flag_in.clear(), iv_flag_out.clear();
 	mac_in.clear(), mac_out.clear();
-	for (size_t i = 0; i < mac_sqn_in.size(); i++)
-	{
-		mpz_clear(mac_sqn_in[i]);
-		delete [] mac_sqn_in[i];
-	}
-	mac_sqn_in.clear();
-	for (size_t i = 0; i < mac_sqn_out.size(); i++)
-	{
-		mpz_clear(mac_sqn_out[i]);
-		delete [] mac_sqn_out[i];
-	}
-	mac_sqn_out.clear();
 	enc_in.clear(), enc_out.clear();
-	bad_auth.clear();
 }
 

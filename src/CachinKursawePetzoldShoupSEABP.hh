@@ -9,7 +9,7 @@
 
    This file is part of LibTMCG.
 
- Copyright (C) 2016, 2017, 2018, 2019  Heiko Stamer <HeikoStamer@gmx.net>
+ Copyright (C) 2016, 2017, 2018  Heiko Stamer <HeikoStamer@gmx.net>
 
    LibTMCG is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,54 +44,42 @@
 #include "aiounicast.hh"
 
 // define some internal types for convenience
-typedef std::map<std::string, bool>         RBC_TagCheck;
-typedef std::map<std::string, size_t>       RBC_TagCount;
-typedef std::map<std::string, mpz_ptr>      RBC_TagMpz;
-typedef std::list<mpz_ptr>                  RBC_BufferList;
-typedef std::map<std::string, mpz_ptr>      RBC_BufferMap;
-typedef std::vector<mpz_ptr>                RBC_Message;
-typedef std::vector<mpz_srcptr>             RBC_ConstMessage;
-typedef std::list<RBC_Message>              RBC_VectorList;
-typedef std::map<std::string, RBC_Message>  RBC_VectorMap;
-typedef std::vector<mpz_ptr>                RBC_Counters;
+typedef std::map<std::string, bool>			RBC_TagCheck;
+typedef std::map<std::string, size_t>		RBC_TagCount;
+typedef std::map<std::string, mpz_ptr>		RBC_TagMpz;
+typedef std::list<mpz_ptr>					RBC_BufferList;
+typedef std::vector<mpz_ptr>				RBC_Message;
+typedef std::vector<mpz_srcptr>				RBC_ConstMessage;
+typedef std::list< RBC_Message >			RBC_VectorList;
 
 /* The following class implements an optimized version of Bracha's protocol 
-   described in [CKPS01]. Additionally, a FIFO-order delivery mechanism based on
+   described in [CKPS01]. Additionally, a FIFO-order deliver mechanism based on
    sequence numbers has been implemented. Original paper cited: G. Bracha: 'An
    asynchronous [(n-1)/3]-resilient consensus protocol', Proc. 3rd ACM Symposium
    on Principles of Distributed Computing (PODC), pp. 154–162, 1984.
 
-   Note that neither Bracha's consensus algorithm nor any randomized consensus
-   algorithm of Cachin et al. are implemented yet. */
+   Note that Bracha's consensus algorithm is not implemented yet.*/
 class CachinKursawePetzoldShoupRBC
 {
 	private:
-		size_t                               aio_default_scheduler;
-		time_t                               aio_default_timeout;
-		const time_t                         aio_timeout_vs;
-		mpz_t                                ID, whoami, s;
-		RBC_BufferList                       last_IDs, last_s;
-		RBC_VectorList                       last_deliver_s;
-		RBC_BufferMap                        recover_s;
-		RBC_VectorMap                        recover_deliver_s;
-		mpz_t                                r_send, r_echo, r_ready;
-		mpz_t                                r_request, r_answer;
-		mpz_t                                l_retrieve, l_deliver;
-		mpz_t                                l_fail;
-		std::vector<RBC_TagCheck>            send, echo, ready;
-		std::vector<RBC_TagCheck>            request, answer;
-		std::vector<RBC_TagCheck>            retrieve, deliver;
-		RBC_VectorMap                        retrieve_buf;
-		RBC_TagMpz                           mbar, dbar;
-		std::map<std::string, RBC_TagCount>  e_d, r_d;
-		std::vector<RBC_BufferList>          buf_mpz, buf_id, buf_msg;
-		std::vector<bool>                    deliver_error;
-		RBC_VectorList                       deliver_buf;
-		RBC_Counters                         deliver_s;
-		aiounicast*                          aiou;
-		static const size_t                  sync_slices = 10;
-		size_t                               fifo_skip;
-		bool                                 fifo;
+		size_t									aio_default_scheduler;
+		time_t									aio_default_timeout;
+		const time_t							aio_timeout_vs;
+		mpz_t									ID, whoami, s;
+		RBC_BufferList							last_IDs, last_s;
+		RBC_VectorList							last_deliver_s;
+		mpz_t									r_send, r_echo, r_ready;
+		mpz_t									r_request, r_answer;
+		std::vector<RBC_TagCheck>				send, echo, ready;
+		std::vector<RBC_TagCheck>				request, answer;
+		RBC_TagMpz								mbar, dbar;
+		std::map<std::string, RBC_TagCount>		e_d, r_d;
+		std::vector<RBC_BufferList>				buf_mpz, buf_id, buf_msg;
+		std::vector<bool>						deliver_error;
+		std::list<RBC_Message>					deliver_buf;
+		std::vector<mpz_ptr>					deliver_s;
+		aiounicast*								aiou;
+		static const size_t						sync_slices = 10;
 
 		void InitializeMessage
 			(RBC_Message &message);
@@ -107,15 +95,11 @@ class CachinKursawePetzoldShoupRBC
 		void TagMessage
 			(std::string &tag,
 			 const RBC_Message &message);
-		void TagMessage
-			(std::string &tag,
-			 const RBC_ConstMessage &message);
 		void ReleaseMessage
 			(RBC_Message &message);
 	
 	public:
-		size_t                              n, t, j;
-		std::map<std::string, std::string>  ID_log;
+		size_t									n, t, j;
 
 		CachinKursawePetzoldShoupRBC
 			(const size_t n_in,
@@ -123,14 +107,11 @@ class CachinKursawePetzoldShoupRBC
 			 const size_t j_in,
 			 aiounicast* aiou_in,
 			 const size_t scheduler_in = aiounicast::aio_scheduler_roundrobin,
-			 const time_t timeout_in = aiounicast::aio_timeout_extremely_long,
-			 const size_t fifo_skip_in = 0);
+			 const time_t timeout_in = aiounicast::aio_timeout_extremely_long);
 		void setID
-			(const std::string &ID_in, const bool fifo_in = true);
-		void recoverID
-			(const std::string &ID_in, const bool fifo_in = true);
+			(const std::string &ID_in);
 		void unsetID
-			(const bool fifo_in = true);
+			();
 		void Broadcast
 			(mpz_srcptr m,
 			 const bool simulate_faulty_behaviour = false);
@@ -144,9 +125,6 @@ class CachinKursawePetzoldShoupRBC
 			 const size_t i_in,
 			 size_t scheduler = aiounicast::aio_scheduler_default,
 			 time_t timeout = aiounicast::aio_timeout_default);
-		void QueueFrom
-			(mpz_srcptr m,
-			 const size_t i_in);
 		bool Sync
 			(time_t timeout = aiounicast::aio_timeout_default,
 			 const std::string tag = "");

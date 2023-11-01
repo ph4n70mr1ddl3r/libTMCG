@@ -3,8 +3,8 @@
 
    This file is part of LibTMCG.
 
- Copyright (C) 2004, 2005, 2006, 2007, 2015, 2016, 2017, 2018, 2019,
-               2021  Heiko Stamer <HeikoStamer@gmx.net>
+ Copyright (C) 2004, 2005, 2006, 2007, 
+               2015, 2016, 2017, 2018  Heiko Stamer <HeikoStamer@gmx.net>
 
    LibTMCG is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,10 +32,10 @@
 
 	#ifndef TMCG_MAX_ZNP_ITERATIONS
 		/* Define the maximum number of iterations for the prover in
-		   cut-and-choose style zero-knowledge protocols of Schindelhauer's
-		   toolbox. This limits the soundness error probability to
-		   2^{-TMCG_MAX_ZNP_ITERATIONS}, however, it also protects against
-		   some obvious denial-of-service attacks. */  
+		   cut-and-choose style zero-knowledge protocols of 
+		   Schindelhauer's toolbox. This limits the soundness error
+		   probability to 2^{-TMCG_MAX_ZNP_ITERATIONS}, however, it
+		   protects against some obvious denial-of-service attacks. */  
 		#define TMCG_MAX_ZNP_ITERATIONS 80
 	#endif
 
@@ -118,12 +118,12 @@
 	
 	#ifndef TMCG_LIBGCRYPT_VERSION
 		/* Define the necessary version number of the GNU gcrypt library */
-		#define TMCG_LIBGCRYPT_VERSION "1.8.0"
+		#define TMCG_LIBGCRYPT_VERSION "1.6.0"
 	#endif
 	
 	#ifndef TMCG_LIBGMP_VERSION
 		/* Define the necessary version number of the GNU gmp library */
-		#define TMCG_LIBGMP_VERSION "6.1.2"
+		#define TMCG_LIBGMP_VERSION "4.2.0"
 	#endif
 	
 	#ifndef TMCG_MAX_CARDS
@@ -225,8 +225,8 @@
 	#endif
 
 	#ifndef TMCG_OPENPGP_MAX_ALLOC
-		/* Define the maximum number of memory to allocate for OpenPGP packet
-		   decoding structures */
+		/* Define the maximum number of memory to allocate for OPENPGP packet
+		   context structures */
 		#define TMCG_OPENPGP_MAX_ALLOC 2147483645UL
 	#endif
 
@@ -244,9 +244,6 @@
 	#include <mpz_spowm.hh>
 	#include <mpz_shash.hh>
 	#include <mpz_helper.hh>
-
-	// general data structures
-	#include <TMCG_Bigint.hh>
 
 	// data structures and protocols for mental poker
 	#include <TMCG_SecretKey.hh>

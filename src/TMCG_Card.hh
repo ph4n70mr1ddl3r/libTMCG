@@ -2,7 +2,7 @@
   Data structure for a card. This file is part of LibTMCG.
 
  Copyright (C) 2004, 2005, 2007, 2010,
-               2016, 2018, 2019  Heiko Stamer <HeikoStamer@gmx.net>
+                           2016, 2018  Heiko Stamer <HeikoStamer@gmx.net>
 
    LibTMCG is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ struct TMCG_Card
 	    representation of the card type there is a column. The elements
 	    of the matrix are numbers from @f$\mathbb{Z}^{\circ}_{m_i}@f$
 	    where @f$m_i@f$ is the public modul of the @f$i@f$th player. */
-	std::vector< std::vector<MP_INT> > z;
+	std::vector< std::vector<MP_INT> >			z;
 	
 	/** This constructor initializes a card with a @f$1\times 1@f$-matrix.
 	    Later the function TMCG_Card::resize can be used to enlarge the
@@ -79,8 +79,7 @@ struct TMCG_Card
 		(const TMCG_Card& that) const;
 	
 	/** This function resizes the representation of the card. The current
-	    content will be released and a new @f$k\times w@f$-matrix is created,
-		if the corresponding sizes are different.
+	    content will be released and a new @f$k\times w@f$-matrix is created.
 	    @param k is the number of players.
 	    @param w is the number of bits used in the binary representation
 	           of the card type. */

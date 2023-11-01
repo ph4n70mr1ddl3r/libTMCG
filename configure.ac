@@ -1,4 +1,4 @@
-# Copyright (C) 2005--2007, 2009, 2015--2021  Heiko Stamer <HeikoStamer@gmx.net>
+# Copyright (C) 2005--2007, 2009, 2015--2019  Heiko Stamer <HeikoStamer@gmx.net>
 #
 # This file is part of LibTMCG.
 #
@@ -16,12 +16,13 @@
 #   along with LibTMCG; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-# (Process this file with GNU autoconf to produce a configure script.)
+# (Process this file with autoconf to produce a configure script.)
 
-AC_REVISION([20210320])
-AC_PREREQ([2.69])
+AC_REVISION([20190531])
+AC_PREREQ(2.61)
 
-AC_INIT([LibTMCG],[1.4.0],[HeikoStamer@gmx.net],[libTMCG],[https://www.nongnu.org/libtmcg/])
+AC_INIT([LibTMCG], [1.3.18], [HeikoStamer@gmx.net], [libTMCG],
+	[https://www.nongnu.org/libtmcg/])
 
 # The next two paragraphs are copies of behaviour from libgcrypt.
 
@@ -29,12 +30,12 @@ AC_INIT([LibTMCG],[1.4.0],[HeikoStamer@gmx.net],[libTMCG],[https://www.nongnu.or
 #   (Interfaces removed:    CURRENT++, AGE=0, REVISION=0)
 #   (Interfaces added:      CURRENT++, AGE++, REVISION=0)
 #   (No interfaces changed:                   REVISION++)
-LIBTMCG_LT_CURRENT=20
+LIBTMCG_LT_CURRENT=18
 LIBTMCG_LT_AGE=0
 LIBTMCG_LT_REVISION=0
 
 # If API is changed in an incompatible way: increment the next counter.
-LIBTMCG_CONFIG_API_VERSION=7
+LIBTMCG_CONFIG_API_VERSION=6
 
 AC_LANG(C++)
 AC_CONFIG_SRCDIR([src/libTMCG.hh])
@@ -58,9 +59,9 @@ LIBTMCG_CONFIG_CFLAGS=""
 
 # Define some security parameters and helping macros
 # (NOTE: Please update also libTMCG.hh, if changed!)
-AC_DEFINE(TMCG_LIBGCRYPT_VERSION, "1.8.0",
+AC_DEFINE(TMCG_LIBGCRYPT_VERSION, "1.6.0",
 	[Define the necessary version number of the GNU gcrypt library])
-AC_DEFINE(TMCG_LIBGMP_VERSION, "6.1.2",
+AC_DEFINE(TMCG_LIBGMP_VERSION, "4.2.0",
 	[Define the necessary version number of the GNU gmp library])
 AC_DEFINE(TMCG_MAX_FPOWM_T, 2048,
 	[Define the maximum size of the exponent for fast exponentiation])
@@ -86,8 +87,8 @@ AC_DEFINE(TMCG_OPENPGP_RADIX64_MC, 64,
 	[Define the maximum number of characters in a single line of Radix-64\
  encoding])
 AC_DEFINE(TMCG_OPENPGP_MAX_ALLOC, 2147483645UL,
-	[Define the maximum number of memory to allocate for OpenPGP packet\
- decoding structures])
+	[Define the maximum number of memory to allocate for OPENPGP packet\
+ context structures])
 
 AC_DEFINE(TMCG_MR_ITERATIONS, 64,
 	[Define the number of iterations for the Miller-Rabin primality test.
@@ -96,7 +97,7 @@ AC_DEFINE(TMCG_MAX_ZNP_ITERATIONS, 80,
 	[Define the maximum number of iterations for the prover in cut-and-choose
 	style zero-knowledge protocols of Schindelhauer's toolbox. This limits the
 	soundness error probability to 2^{-TMCG_MAX_ZNP_ITERATIONS}, however, it
-	also protects against some obvious denial-of-service attacks.])
+	protects against some obvious denial-of-service attacks.])
 AC_DEFINE(TMCG_MAX_DKG_PLAYERS, 256,
 	[Define the maximum number of parties for DKG protocols.])
 AC_DEFINE(TMCG_GROTH_L_E, 80,
@@ -177,7 +178,7 @@ AC_PROG_MKDIR_P
 
 # Checks for libraries
 backup_LDFLAGS="$LDFLAGS"
-backup_CPPFLAGS="$CPPFLAGS"
+backup_CPPLAGS="$CPPFLAGS"
 AC_ARG_WITH(gmp, [AS_HELP_STRING([--with-gmp=<prefix>],
  [prefix of GMP installation path, e.g. /usr/local])],
  [GMP_PREFIX="$with_gmp" LDFLAGS="-L${with_gmp}/lib $backup_LDFLAGS"\
@@ -206,18 +207,18 @@ AC_SUBST(LIBGMP_CFLAGS)
 LDFLAGS="$backup_LDFLAGS"
 CPPFLAGS="$backup_CPPFLAGS"
 
-AM_PATH_LIBGCRYPT("1.8.0")
+AM_PATH_LIBGCRYPT("1.6.0")
 if test "x$LIBGCRYPT_LIBS" = "x"; then
-	AC_MSG_ERROR([libgcrypt >= 1.8.0 is required])
+	AC_MSG_ERROR([libgcrypt >= 1.6.0 is needed])
 fi
-backup_CPPFLAGS="$CPPFLAGS"
+backup_CPPLAGS="$CPPFLAGS"
 CPPFLAGS="$LIBGCRYPT_CFLAGS $backup_CPPFLAGS"
 AC_CHECK_HEADERS([gcrypt.h], , AC_MSG_ERROR([libgcrypt headers are missing]))
 CPPFLAGS="$backup_CPPFLAGS"
 
-AM_PATH_GPG_ERROR("1.27")
+AM_PATH_GPG_ERROR("1.12")
 if test "x$GPG_ERROR_LIBS" = "x"; then
-	AC_MSG_ERROR([libgpg-error >= 1.27 is required])
+	AC_MSG_ERROR([libgpg-error >= 1.12 is needed])
 fi
 
 backup_LDFLAGS="$LDFLAGS"
@@ -243,7 +244,7 @@ if test "x$with_botan" != x ; then
  call --with-botan with install prefix]))
 	BOTAN_LIBS="-lbotan-2 -L${BOTAN_PREFIX}/lib"
 	BOTAN_CFLAGS="-I${BOTAN_PREFIX}/include/botan-2"
-	AC_DEFINE(BOTAN, , [Define to enable optional Botan support for randomness])
+	AC_DEFINE(BOTAN, , [Define to enable optional Botan support])
 else
 	BOTAN_LIBS=""
 	BOTAN_CFLAGS=""
@@ -255,6 +256,8 @@ CPPFLAGS="$backup_CPPFLAGS"
 
 # Checks for header files
 AC_HEADER_ASSERT
+AC_HEADER_STDC
+AC_HEADER_TIME
 AC_CHECK_HEADERS([algorithm assert.h cassert cstdarg cstdio cstdlib cstring\
  ctime cstddef errno.h exception fcntl.h fstream functional inttypes.h iomanip\
  iostream limits.h list map sstream stdexcept stdint.h stdio.h string string.h\
@@ -271,14 +274,13 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_CHECK_TYPES([ptrdiff_t])
-AC_CHECK_SIZEOF([unsigned long int])
 
 # Checks for library functions
 AC_FUNC_MALLOC
 AC_FUNC_MEMCMP
-AC_CHECK_FUNCS([abs clock close ctime fcntl fprintf gmtime_r memcmp memcpy\
- memmove memset open perror read remove sscanf select sleep snprintf strrchr\
- strtoul time write], ,
+AC_CHECK_FUNCS([abs clock close ctime fcntl fprintf memcmp memcpy memmove\
+ memset open perror read remove sscanf select sleep snprintf strrchr strtoul\
+ time write], ,
 	AC_MSG_ERROR([some functions are missing]))
 
 # Checks for forking tests feature

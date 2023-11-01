@@ -26,7 +26,6 @@
 #include "mpz_helper.hh"
 
 // additional headers
-#include <cstring>
 #include <stdexcept>
 
 // get content of mpz_t into gcry_mpi_t
