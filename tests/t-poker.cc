@@ -1,8 +1,7 @@
 /*******************************************************************************
    This file is part of LibTMCG.
 
- Copyright (C) 2007, 2009,
-               2016, 2017, 2018, 2019  Heiko Stamer <HeikoStamer@gmx.net>
+ Copyright (C) 2016, 2017, 2018, 2019  Heiko Stamer <HeikoStamer@gmx.net>
 
    LibTMCG is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +39,7 @@
 #include "pipestream.hh"
 
 #undef NDEBUG
-#define PLAYERS 9
+#define PLAYERS 2
 #define DECKSIZE 52
 #define FLOPSIZE 5
 
@@ -51,7 +50,7 @@ void start_instance
 	(std::istream& vtmf_str, size_t player)
 {
 	if ((pid[player] = fork()) < 0)
-		perror("t-poker (fork)");
+		perror("t-poker-noninteractive (fork)");
 	else
 	{
 		if (pid[player] == 0)
@@ -75,8 +74,8 @@ void start_instance
 				BarnettSmartVTMF_dlog *vtmf = new BarnettSmartVTMF_dlog(vtmf_str);
 				if (!vtmf->CheckGroup())
 				{
-					std::cout << "P_" << player << ": group G was not" <<
-						" correctly generated" << std::endl;
+					std::cout << "P_" << player << ": " <<
+						"Group G was not correctly generated!" << std::endl;
 					exit(-1);
 				}
 				stop_clock();
@@ -98,7 +97,7 @@ void start_instance
 						if (!vtmf->KeyGenerationProtocol_UpdateKey(*P_in[i]))
 						{
 							std::cout << "P_" << player << ": Public key of" <<
-								" P_" << i << " was not correctly generated" <<
+								" P_" << i << " was not correctly generated!" <<
 								std::endl;
 							exit(-1);
 						}
@@ -120,7 +119,7 @@ void start_instance
 					if (!vsshe->CheckGroup())
 					{
 						std::cout << "P_" << player << ": VSSHE instance" <<
-							" was not correctly generated" << std::endl;
+							" was not correctly generated!" << std::endl;
 						exit(-1);
 					}
 					for (size_t i = 1; i < PLAYERS; i++)
@@ -137,19 +136,19 @@ void start_instance
 					if (!vsshe->CheckGroup())
 					{
 						std::cout << "P_" << player << ": VSSHE instance" <<
-							" was not correctly generated" << std::endl;
+							" was not correctly generated!" << std::endl;
 						exit(-1);
 					}
 					if (mpz_cmp(vtmf->h, vsshe->com->h))
 					{
 						std::cout << "VSSHE: common public key does not" <<
-							" match" << std::endl;
+							" match!" << std::endl;
 						exit(-1);
 					}
 					if (mpz_cmp(vtmf->q, vsshe->com->q))
 					{
 						std::cout << "VSSHE: subgroup order does not" <<
-							" match" << std::endl;
+							" match!" << std::endl;
 						exit(-1);
 					}
 					if (mpz_cmp(vtmf->p, vsshe->p) ||
@@ -158,7 +157,7 @@ void start_instance
 						mpz_cmp(vtmf->h, vsshe->h))
 					{
 						std::cout << "VSSHE: encryption scheme does not" <<
-							" match" << std::endl;
+							" match!" << std::endl;
 						exit(-1);
 					}
 					stop_clock();
@@ -183,15 +182,17 @@ void start_instance
 					if (i == player)
 					{
 						TMCG_StackSecret<VTMF_CardSecret> ss;
+						std::stringstream lej;
 						tmcg->TMCG_CreateStackSecret(ss, false, s.size(), vtmf);
 						tmcg->TMCG_MixStack(s, s2, ss, vtmf);
+						tmcg->TMCG_ProveStackEquality_Groth_noninteractive(s,
+							s2, ss, vtmf, vsshe, lej);
 						for (size_t i2 = 0; i2 < PLAYERS; i2++)
 						{
 							if (i2 == player)
 								continue;
 							*P_out[i2] << s2 << std::endl;
-							tmcg->TMCG_ProveStackEquality_Groth(s, s2, ss,
-								vtmf, vsshe, *P_in[i2], *P_out[i2]);
+							*P_out[i2] << lej.str();
 						}
 					}
 					else
@@ -199,14 +200,13 @@ void start_instance
 						*P_in[i] >> s2;
 						if (!P_in[i]->good())
 						{
-							std::cout << "shuffle: read or parse error" <<
-								std::endl;
+							std::cout << "Read or parse error!" << std::endl;
 							exit(-1);
 						}
-						if (!tmcg->TMCG_VerifyStackEquality_Groth(s, s2,
-							vtmf, vsshe, *P_in[i], *P_out[i]))
+						if (!tmcg->TMCG_VerifyStackEquality_Groth_noninteractive(s,
+							s2, vtmf, vsshe, *P_in[i]))
 						{
-							std::cout << "shuffle: verification failed" <<
+							std::cout << "Shuffle verification failed!" <<
 								std::endl;
 							exit(-1);
 						}
@@ -241,21 +241,22 @@ void start_instance
 								if (!tmcg->TMCG_VerifyCardSecret(hand[i][k],
 									vtmf, *P_in[i2], *P_out[i2]))
 								{
-									std::cout << "draw: card verification" <<
-										" failed" << std::endl;
+									std::cout << "Card verification failed!" <<
+										std::endl;
 									exit(-1);
 								}
 							}
-							size_t t = tmcg->TMCG_TypeOfCard(hand[i][k], vtmf);
-							private_hand.push(t, hand[i][k]);
+							size_t type = tmcg->TMCG_TypeOfCard(hand[i][k],
+								vtmf);
+							private_hand.push(type, hand[i][k]);
 						}
 					}
 					else
 					{
 						for (size_t k = 0; k < hand[i].size(); k++)
 						{
-							tmcg->TMCG_ProveCardSecret(hand[i][k],
-								vtmf, *P_in[i], *P_out[i]);
+							tmcg->TMCG_ProveCardSecret(hand[i][k], vtmf,
+								*P_in[i], *P_out[i]);
 						}
 					}
 				}
@@ -263,8 +264,8 @@ void start_instance
 				std::cout << "P_" << player << ": " << elapsed_time() <<
 					std::endl;
 				std::cout << "P_" << player << ": my cards are " <<
-					private_hand[0].first << " and " <<	private_hand[1].first <<
-					std::endl;
+					private_hand[0].first << " and " <<
+					private_hand[1].first << std::endl;
 			
 				// drawing the flop
 				start_clock();
@@ -286,11 +287,11 @@ void start_instance
 							{
 								if (i2 == player)
 									continue;
-								if (!tmcg->TMCG_VerifyCardSecret(flop[k],
-									vtmf, *P_in[i2], *P_out[i2]))
+								if (!tmcg->TMCG_VerifyCardSecret(flop[k], vtmf,
+									*P_in[i2], *P_out[i2]))
 								{
-									std::cout << "flop: card verification" <<
-										" failed" << std::endl;
+									std::cout << "Card verification failed!" <<
+										std::endl;
 									exit(-1);
 								}
 							}
@@ -302,8 +303,8 @@ void start_instance
 					{
 						for (size_t k = 0; k < flop.size(); k++)
 						{
-							tmcg->TMCG_ProveCardSecret(flop[k],
-								vtmf, *P_in[i], *P_out[i]);
+							tmcg->TMCG_ProveCardSecret(flop[k], vtmf,
+								*P_in[i], *P_out[i]);
 						}
 					}
 				}
@@ -314,7 +315,6 @@ void start_instance
 				for (size_t i = 0; i < FLOPSIZE; i++)
 					std::cout << open_flop[i].first << " ";
 				std::cout << std::endl;
-			
 			
 				// release TMCG, VTMF, and VSSHE instances
 				delete tmcg, delete vtmf, delete vsshe;
@@ -353,7 +353,7 @@ int main
 	assert(init_libTMCG());
 
 	try
-	{
+	{	
 		BarnettSmartVTMF_dlog *vtmf;
 		std::stringstream vtmf_str;
 
@@ -376,7 +376,7 @@ int main
 			for (size_t j = 0; j < PLAYERS; j++)
 			{
 				if (pipe(pipefd[i][j]) < 0)
-					perror("t-poker (pipe)");
+					perror("t-poker-noninteractive (pipe)");
 			}
 		}
 	
@@ -391,13 +391,15 @@ int main
 			int wstatus = 0;
 			std::cerr << "waitpid(" << pid[i] << ")" << std::endl;
 			if (waitpid(pid[i], &wstatus, 0) != pid[i])
-				perror("t-poker (waitpid)");
+				perror("t-poker-noninteractive (waitpid)");
 			if (!WIFEXITED(wstatus))
 			{
 				std::cerr << "ERROR: ";
 				if (WIFSIGNALED(wstatus))
+				{
 					std::cerr << pid[i] << " terminated by signal " <<
 						WTERMSIG(wstatus) << std::endl;
+				}
 				if (WCOREDUMP(wstatus))
 					std::cerr << pid[i] << " dumped core" << std::endl;
 				result = false;
@@ -405,13 +407,13 @@ int main
 			for (size_t j = 0; j < PLAYERS; j++)
 			{
 				if ((close(pipefd[i][j][0]) < 0) || (close(pipefd[i][j][1]) < 0))
-					perror("t-poker (close)");
+					perror("t-poker-noninteractive (close)");
 			}
 		}
 	
 		// release VTMF instance
 		delete vtmf;
-	
+
 		if (result)
 			return 0;
 		else
